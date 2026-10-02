@@ -16,3 +16,7 @@ if (NOT COMMAND canon_apply_target)
         find_package(Canon 0.1 CONFIG REQUIRED)
     endif()
 endif()
+
+if (BUILD_TESTING)
+    add_subdirectory(test)
+endif()
