@@ -1,3 +1,6 @@
 [submodule "standards"]
 	path = standards
 	url = https://github.com/fsecilia/standards.git
+[submodule "external/canon"]
+	path = external/canon
+	url = https://github.com/fsecilia/canon.git
