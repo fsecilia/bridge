@@ -17,6 +17,24 @@ if (NOT COMMAND canon_apply_target)
     endif()
 endif()
 
+include(cmake/BridgeWin32Environment.cmake)
+_bridge_find_win32_environment(
+    BRIDGE_WIN32_AVAILABLE
+    BRIDGE_LLVM_MINGW_DISCOVERED_ROOT
+    BRIDGE_WIN32_C_COMPILER
+    BRIDGE_WIN32_CXX_COMPILER
+    BRIDGE_WIN32_RUNTIME_DIR
+    BRIDGE_WINE_EXECUTABLE
+    BRIDGE_WINEPATH_EXECUTABLE
+    BRIDGE_WIN32_UNAVAILABLE_REASON
+)
+if (BRIDGE_WIN32_AVAILABLE)
+    message(STATUS "Bridge Win32 environment: available (${BRIDGE_LLVM_MINGW_DISCOVERED_ROOT})")
+else()
+    message(STATUS "Bridge Win32 environment: unavailable")
+    message(STATUS "  ${BRIDGE_WIN32_UNAVAILABLE_REASON}")
+endif()
+
 if (BUILD_TESTING)
     add_subdirectory(test)
 endif()

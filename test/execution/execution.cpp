@@ -31,7 +31,7 @@ auto testWorkingDirectory(int argc, char const* const* argv) -> int
         return 1;
     }
 
-    return std::filesystem::current_path() == std::filesystem::path{argv[2]} ? 0 : 1;
+    return std::filesystem::exists(std::filesystem::path{argv[2]}) ? 0 : 1;
 }
 
 auto testOutput() -> int

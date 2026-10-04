@@ -6,6 +6,6 @@
     "patch": 6
   },
   "include": [
-    "external/canon/cmake/CanonPresets.json"
+    "cmake/BridgePresets.json"
   ]
 }

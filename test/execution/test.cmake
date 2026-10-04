@@ -10,8 +10,8 @@ endif()
 if (NOT DEFINED BRIDGE_GENERATOR)
     message(FATAL_ERROR "BRIDGE_GENERATOR is required")
 endif()
-if (NOT DEFINED BRIDGE_EXPECT_EMULATOR)
-    message(FATAL_ERROR "BRIDGE_EXPECT_EMULATOR is required")
+if (NOT DEFINED BRIDGE_EXPECT_TEST_EMULATOR)
+    message(FATAL_ERROR "BRIDGE_EXPECT_TEST_EMULATOR is required")
 endif()
 
 file(REMOVE_RECURSE "${BRIDGE_BINARY_DIR}")
@@ -25,6 +25,12 @@ set(_bridge_configure_command
 if (DEFINED BRIDGE_TOOLCHAIN_FILE)
     list(APPEND _bridge_configure_command --toolchain "${BRIDGE_TOOLCHAIN_FILE}")
 endif()
+if (DEFINED BRIDGE_LLVM_MINGW_ROOT)
+    list(APPEND _bridge_configure_command
+        "-DBRIDGE_LLVM_MINGW_ROOT:PATH=${BRIDGE_LLVM_MINGW_ROOT}")
+endif()
+list(APPEND _bridge_configure_command
+    "-DBRIDGE_EXPECT_TEST_EMULATOR:BOOL=${BRIDGE_EXPECT_TEST_EMULATOR}")
 
 execute_process(
     COMMAND ${_bridge_configure_command}
@@ -57,7 +63,7 @@ if (NOT "${_bridge_test_result}" STREQUAL "0")
 endif()
 
 string(FIND "${_bridge_test_output}" "bridge test emulator" _bridge_emulator_position)
-if (BRIDGE_EXPECT_EMULATOR)
+if (BRIDGE_EXPECT_TEST_EMULATOR)
     if (_bridge_emulator_position LESS 0)
         message(FATAL_ERROR "Bridge execution specimen did not use the configured emulator")
     endif()

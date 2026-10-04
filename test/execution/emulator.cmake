@@ -25,7 +25,10 @@ foreach(_bridge_index RANGE "${_bridge_first_command_argument}" "${_bridge_last_
 endforeach()
 
 message(STATUS "bridge test emulator")
-execute_process(COMMAND ${_bridge_command} RESULT_VARIABLE _bridge_result)
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env BRIDGE_TEST_EMULATOR=1 ${_bridge_command}
+    RESULT_VARIABLE _bridge_result
+)
 if (NOT "${_bridge_result}" STREQUAL "0")
     message(FATAL_ERROR "Bridge test emulator target failed with status ${_bridge_result}")
 endif()

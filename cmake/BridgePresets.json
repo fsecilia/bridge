@@ -1,0 +1,212 @@
+{
+  "version": 10,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 31,
+    "patch": 6
+  },
+  "include": [
+    "../external/canon/cmake/CanonPresets.json"
+  ],
+  "configurePresets": [
+    {
+      "name": "bridge-win32",
+      "hidden": true,
+      "inherits": "canon-base",
+      "toolchainFile": "${fileDir}/../toolchains/bridge-win32.cmake"
+    },
+    {
+      "name": "win32-debug",
+      "inherits": [
+        "bridge-win32",
+        "canon-debug"
+      ]
+    },
+    {
+      "name": "win32-release",
+      "inherits": [
+        "bridge-win32",
+        "canon-release"
+      ]
+    },
+    {
+      "name": "win32-asan",
+      "inherits": [
+        "bridge-win32",
+        "canon-asan"
+      ]
+    },
+    {
+      "name": "win32-tidy",
+      "inherits": [
+        "bridge-win32",
+        "canon-tidy"
+      ]
+    },
+    {
+      "name": "win32-coverage",
+      "inherits": [
+        "bridge-win32",
+        "canon-coverage"
+      ]
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "win32-debug",
+      "configurePreset": "win32-debug"
+    },
+    {
+      "name": "win32-release",
+      "configurePreset": "win32-release"
+    },
+    {
+      "name": "win32-asan",
+      "configurePreset": "win32-asan"
+    },
+    {
+      "name": "win32-tidy",
+      "configurePreset": "win32-tidy"
+    },
+    {
+      "name": "win32-coverage-clean",
+      "configurePreset": "win32-coverage",
+      "targets": [
+        "coverage-clean"
+      ]
+    },
+    {
+      "name": "win32-coverage",
+      "configurePreset": "win32-coverage"
+    },
+    {
+      "name": "win32-coverage-report",
+      "configurePreset": "win32-coverage",
+      "targets": [
+        "coverage-report"
+      ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "win32-debug",
+      "inherits": "_canon-test",
+      "configurePreset": "win32-debug"
+    },
+    {
+      "name": "win32-release",
+      "inherits": "_canon-test",
+      "configurePreset": "win32-release"
+    },
+    {
+      "name": "win32-asan",
+      "inherits": "_canon-test",
+      "configurePreset": "win32-asan"
+    },
+    {
+      "name": "win32-tidy",
+      "inherits": "_canon-test",
+      "configurePreset": "win32-tidy"
+    },
+    {
+      "name": "win32-coverage",
+      "inherits": "_canon-test",
+      "configurePreset": "win32-coverage"
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "win32-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "win32-debug"
+        },
+        {
+          "type": "build",
+          "name": "win32-debug"
+        },
+        {
+          "type": "test",
+          "name": "win32-debug"
+        }
+      ]
+    },
+    {
+      "name": "win32-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "win32-release"
+        },
+        {
+          "type": "build",
+          "name": "win32-release"
+        },
+        {
+          "type": "test",
+          "name": "win32-release"
+        }
+      ]
+    },
+    {
+      "name": "win32-asan",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "win32-asan"
+        },
+        {
+          "type": "build",
+          "name": "win32-asan"
+        },
+        {
+          "type": "test",
+          "name": "win32-asan"
+        }
+      ]
+    },
+    {
+      "name": "win32-tidy",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "win32-tidy"
+        },
+        {
+          "type": "build",
+          "name": "win32-tidy"
+        },
+        {
+          "type": "test",
+          "name": "win32-tidy"
+        }
+      ]
+    },
+    {
+      "name": "win32-coverage",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "win32-coverage"
+        },
+        {
+          "type": "build",
+          "name": "win32-coverage-clean"
+        },
+        {
+          "type": "build",
+          "name": "win32-coverage"
+        },
+        {
+          "type": "test",
+          "name": "win32-coverage"
+        },
+        {
+          "type": "build",
+          "name": "win32-coverage-report"
+        }
+      ]
+    }
+  ]
+}
