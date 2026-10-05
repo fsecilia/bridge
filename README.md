@@ -15,3 +15,13 @@ cmake --preset win32-debug -DBRIDGE_LLVM_MINGW_ROOT=/path/to/llvm-mingw
 ```
 
 Machine-local paths do not need to be committed or added globally to `PATH`.
+
+## Android prototype
+
+Bridge's Android profiles use the NDK's supported CMake toolchain file and deploy headless executables through `adb`. The toolchain honors `BRIDGE_ANDROID_NDK_ROOT` and `BRIDGE_ANDROID_SDK_ROOT`, then their environment-variable equivalents, then Android's standard SDK variables and common SDK install locations. When an SDK contains multiple side-by-side NDKs, Bridge selects the newest valid installation.
+
+Bridge provides `android-x86_64-*` and `android-arm64-*` profiles for every Canon intent. The default Android platform is API 21 and can be overridden with `BRIDGE_ANDROID_PLATFORM`.
+
+The Android runner selects exactly one online device that supports the target ABI. If multiple compatible devices are connected, set `BRIDGE_ANDROID_SERIAL` to the desired adb serial. The runner pushes each headless executable to `/data/local/tmp`, marks it executable, and runs it through `adb shell` while preserving target arguments, stdout, stderr, and exit status.
+
+This first headless runner does not claim to mirror the host process environment or host working-directory contents onto Android. Tests that need environment variables or runtime files will need an explicit deployment contract rather than an implicit host-filesystem assumption. APK packaging for SDL3 applications is a separate later layer.

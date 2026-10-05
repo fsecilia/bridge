@@ -49,6 +49,98 @@
         "bridge-win32",
         "canon-coverage"
       ]
+    },
+    {
+      "name": "bridge-android",
+      "hidden": true,
+      "inherits": "canon-base",
+      "toolchainFile": "${fileDir}/../toolchains/bridge-android.cmake"
+    },
+    {
+      "name": "bridge-android-x86_64",
+      "hidden": true,
+      "inherits": "bridge-android",
+      "cacheVariables": {
+        "BRIDGE_ANDROID_ABI": "x86_64"
+      }
+    },
+    {
+      "name": "bridge-android-arm64",
+      "hidden": true,
+      "inherits": "bridge-android",
+      "cacheVariables": {
+        "BRIDGE_ANDROID_ABI": "arm64-v8a"
+      }
+    },
+    {
+      "name": "android-x86_64-debug",
+      "inherits": [
+        "bridge-android-x86_64",
+        "canon-debug"
+      ]
+    },
+    {
+      "name": "android-x86_64-release",
+      "inherits": [
+        "bridge-android-x86_64",
+        "canon-release"
+      ]
+    },
+    {
+      "name": "android-x86_64-asan",
+      "inherits": [
+        "bridge-android-x86_64",
+        "canon-asan"
+      ]
+    },
+    {
+      "name": "android-x86_64-tidy",
+      "inherits": [
+        "bridge-android-x86_64",
+        "canon-tidy"
+      ]
+    },
+    {
+      "name": "android-x86_64-coverage",
+      "inherits": [
+        "bridge-android-x86_64",
+        "canon-coverage"
+      ]
+    },
+    {
+      "name": "android-arm64-debug",
+      "inherits": [
+        "bridge-android-arm64",
+        "canon-debug"
+      ]
+    },
+    {
+      "name": "android-arm64-release",
+      "inherits": [
+        "bridge-android-arm64",
+        "canon-release"
+      ]
+    },
+    {
+      "name": "android-arm64-asan",
+      "inherits": [
+        "bridge-android-arm64",
+        "canon-asan"
+      ]
+    },
+    {
+      "name": "android-arm64-tidy",
+      "inherits": [
+        "bridge-android-arm64",
+        "canon-tidy"
+      ]
+    },
+    {
+      "name": "android-arm64-coverage",
+      "inherits": [
+        "bridge-android-arm64",
+        "canon-coverage"
+      ]
     }
   ],
   "buildPresets": [
@@ -85,6 +177,74 @@
       "targets": [
         "coverage-report"
       ]
+    },
+    {
+      "name": "android-x86_64-debug",
+      "configurePreset": "android-x86_64-debug"
+    },
+    {
+      "name": "android-x86_64-release",
+      "configurePreset": "android-x86_64-release"
+    },
+    {
+      "name": "android-x86_64-asan",
+      "configurePreset": "android-x86_64-asan"
+    },
+    {
+      "name": "android-x86_64-tidy",
+      "configurePreset": "android-x86_64-tidy"
+    },
+    {
+      "name": "android-x86_64-coverage-clean",
+      "configurePreset": "android-x86_64-coverage",
+      "targets": [
+        "coverage-clean"
+      ]
+    },
+    {
+      "name": "android-x86_64-coverage",
+      "configurePreset": "android-x86_64-coverage"
+    },
+    {
+      "name": "android-x86_64-coverage-report",
+      "configurePreset": "android-x86_64-coverage",
+      "targets": [
+        "coverage-report"
+      ]
+    },
+    {
+      "name": "android-arm64-debug",
+      "configurePreset": "android-arm64-debug"
+    },
+    {
+      "name": "android-arm64-release",
+      "configurePreset": "android-arm64-release"
+    },
+    {
+      "name": "android-arm64-asan",
+      "configurePreset": "android-arm64-asan"
+    },
+    {
+      "name": "android-arm64-tidy",
+      "configurePreset": "android-arm64-tidy"
+    },
+    {
+      "name": "android-arm64-coverage-clean",
+      "configurePreset": "android-arm64-coverage",
+      "targets": [
+        "coverage-clean"
+      ]
+    },
+    {
+      "name": "android-arm64-coverage",
+      "configurePreset": "android-arm64-coverage"
+    },
+    {
+      "name": "android-arm64-coverage-report",
+      "configurePreset": "android-arm64-coverage",
+      "targets": [
+        "coverage-report"
+      ]
     }
   ],
   "testPresets": [
@@ -112,6 +272,56 @@
       "name": "win32-coverage",
       "inherits": "_canon-test",
       "configurePreset": "win32-coverage"
+    },
+    {
+      "name": "android-x86_64-debug",
+      "inherits": "_canon-test",
+      "configurePreset": "android-x86_64-debug"
+    },
+    {
+      "name": "android-x86_64-release",
+      "inherits": "_canon-test",
+      "configurePreset": "android-x86_64-release"
+    },
+    {
+      "name": "android-x86_64-asan",
+      "inherits": "_canon-test",
+      "configurePreset": "android-x86_64-asan"
+    },
+    {
+      "name": "android-x86_64-tidy",
+      "inherits": "_canon-test",
+      "configurePreset": "android-x86_64-tidy"
+    },
+    {
+      "name": "android-x86_64-coverage",
+      "inherits": "_canon-test",
+      "configurePreset": "android-x86_64-coverage"
+    },
+    {
+      "name": "android-arm64-debug",
+      "inherits": "_canon-test",
+      "configurePreset": "android-arm64-debug"
+    },
+    {
+      "name": "android-arm64-release",
+      "inherits": "_canon-test",
+      "configurePreset": "android-arm64-release"
+    },
+    {
+      "name": "android-arm64-asan",
+      "inherits": "_canon-test",
+      "configurePreset": "android-arm64-asan"
+    },
+    {
+      "name": "android-arm64-tidy",
+      "inherits": "_canon-test",
+      "configurePreset": "android-arm64-tidy"
+    },
+    {
+      "name": "android-arm64-coverage",
+      "inherits": "_canon-test",
+      "configurePreset": "android-arm64-coverage"
     }
   ],
   "workflowPresets": [
@@ -205,6 +415,192 @@
         {
           "type": "build",
           "name": "win32-coverage-report"
+        }
+      ]
+    },
+    {
+      "name": "android-x86_64-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-x86_64-debug"
+        },
+        {
+          "type": "build",
+          "name": "android-x86_64-debug"
+        },
+        {
+          "type": "test",
+          "name": "android-x86_64-debug"
+        }
+      ]
+    },
+    {
+      "name": "android-x86_64-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-x86_64-release"
+        },
+        {
+          "type": "build",
+          "name": "android-x86_64-release"
+        },
+        {
+          "type": "test",
+          "name": "android-x86_64-release"
+        }
+      ]
+    },
+    {
+      "name": "android-x86_64-asan",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-x86_64-asan"
+        },
+        {
+          "type": "build",
+          "name": "android-x86_64-asan"
+        },
+        {
+          "type": "test",
+          "name": "android-x86_64-asan"
+        }
+      ]
+    },
+    {
+      "name": "android-x86_64-tidy",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-x86_64-tidy"
+        },
+        {
+          "type": "build",
+          "name": "android-x86_64-tidy"
+        },
+        {
+          "type": "test",
+          "name": "android-x86_64-tidy"
+        }
+      ]
+    },
+    {
+      "name": "android-x86_64-coverage",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-x86_64-coverage"
+        },
+        {
+          "type": "build",
+          "name": "android-x86_64-coverage-clean"
+        },
+        {
+          "type": "build",
+          "name": "android-x86_64-coverage"
+        },
+        {
+          "type": "test",
+          "name": "android-x86_64-coverage"
+        },
+        {
+          "type": "build",
+          "name": "android-x86_64-coverage-report"
+        }
+      ]
+    },
+    {
+      "name": "android-arm64-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-arm64-debug"
+        },
+        {
+          "type": "build",
+          "name": "android-arm64-debug"
+        },
+        {
+          "type": "test",
+          "name": "android-arm64-debug"
+        }
+      ]
+    },
+    {
+      "name": "android-arm64-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-arm64-release"
+        },
+        {
+          "type": "build",
+          "name": "android-arm64-release"
+        },
+        {
+          "type": "test",
+          "name": "android-arm64-release"
+        }
+      ]
+    },
+    {
+      "name": "android-arm64-asan",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-arm64-asan"
+        },
+        {
+          "type": "build",
+          "name": "android-arm64-asan"
+        },
+        {
+          "type": "test",
+          "name": "android-arm64-asan"
+        }
+      ]
+    },
+    {
+      "name": "android-arm64-tidy",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-arm64-tidy"
+        },
+        {
+          "type": "build",
+          "name": "android-arm64-tidy"
+        },
+        {
+          "type": "test",
+          "name": "android-arm64-tidy"
+        }
+      ]
+    },
+    {
+      "name": "android-arm64-coverage",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-arm64-coverage"
+        },
+        {
+          "type": "build",
+          "name": "android-arm64-coverage-clean"
+        },
+        {
+          "type": "build",
+          "name": "android-arm64-coverage"
+        },
+        {
+          "type": "test",
+          "name": "android-arm64-coverage"
+        },
+        {
+          "type": "build",
+          "name": "android-arm64-coverage-report"
         }
       ]
     }

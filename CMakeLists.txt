@@ -35,6 +35,22 @@ else()
     message(STATUS "  ${BRIDGE_WIN32_UNAVAILABLE_REASON}")
 endif()
 
+include(cmake/BridgeAndroidEnvironment.cmake)
+_bridge_find_android_environment(
+    BRIDGE_ANDROID_AVAILABLE
+    BRIDGE_ANDROID_DISCOVERED_SDK_ROOT
+    BRIDGE_ANDROID_DISCOVERED_NDK_ROOT
+    BRIDGE_ANDROID_NDK_REVISION
+    BRIDGE_ADB_EXECUTABLE
+    BRIDGE_ANDROID_UNAVAILABLE_REASON
+)
+if (BRIDGE_ANDROID_AVAILABLE)
+    message(STATUS "Bridge Android environment: available (NDK ${BRIDGE_ANDROID_NDK_REVISION})")
+else()
+    message(STATUS "Bridge Android environment: unavailable")
+    message(STATUS "  ${BRIDGE_ANDROID_UNAVAILABLE_REASON}")
+endif()
+
 if (BUILD_TESTING)
     add_subdirectory(test)
 endif()

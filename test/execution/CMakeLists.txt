@@ -10,6 +10,9 @@ include(CTest)
 if (NOT DEFINED BRIDGE_EXPECT_TEST_EMULATOR)
     message(FATAL_ERROR "BRIDGE_EXPECT_TEST_EMULATOR is required")
 endif()
+if (NOT DEFINED BRIDGE_REMOTE_EXECUTION)
+    set(BRIDGE_REMOTE_EXECUTION FALSE)
+endif()
 
 try_run(
     _bridge_try_run_result
@@ -49,26 +52,28 @@ add_test(
     COMMAND bridge_execution_specimen arguments "two words"
 )
 
-add_test(
-    NAME bridge.specimen.environment
-    COMMAND bridge_execution_specimen environment
-)
-set_tests_properties(
-    bridge.specimen.environment
-    PROPERTIES ENVIRONMENT "BRIDGE_SPECIMEN_VALUE=from-ctest"
-)
+if (NOT BRIDGE_REMOTE_EXECUTION)
+    add_test(
+        NAME bridge.specimen.environment
+        COMMAND bridge_execution_specimen environment
+    )
+    set_tests_properties(
+        bridge.specimen.environment
+        PROPERTIES ENVIRONMENT "BRIDGE_SPECIMEN_VALUE=from-ctest"
+    )
 
-set(_bridge_working_directory "${CMAKE_CURRENT_BINARY_DIR}/working-directory")
-file(MAKE_DIRECTORY "${_bridge_working_directory}")
-file(WRITE "${_bridge_working_directory}/bridge-working-directory-marker" "")
-add_test(
-    NAME bridge.specimen.working-directory
-    COMMAND bridge_execution_specimen working-directory bridge-working-directory-marker
-)
-set_tests_properties(
-    bridge.specimen.working-directory
-    PROPERTIES WORKING_DIRECTORY "${_bridge_working_directory}"
-)
+    set(_bridge_working_directory "${CMAKE_CURRENT_BINARY_DIR}/working-directory")
+    file(MAKE_DIRECTORY "${_bridge_working_directory}")
+    file(WRITE "${_bridge_working_directory}/bridge-working-directory-marker" "")
+    add_test(
+        NAME bridge.specimen.working-directory
+        COMMAND bridge_execution_specimen working-directory bridge-working-directory-marker
+    )
+    set_tests_properties(
+        bridge.specimen.working-directory
+        PROPERTIES WORKING_DIRECTORY "${_bridge_working_directory}"
+    )
+endif()
 
 add_test(
     NAME bridge.specimen.output

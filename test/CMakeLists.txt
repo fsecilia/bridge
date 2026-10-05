@@ -2,8 +2,8 @@
 # Copyright (c) 2026 Frank Secilia
 
 function(_bridge_add_execution_test NAME)
-    set(options EMULATED)
-    set(one_value_args TOOLCHAIN LLVM_MINGW_ROOT LABEL)
+    set(options EMULATED REMOTE)
+    set(one_value_args TOOLCHAIN LLVM_MINGW_ROOT ANDROID_NDK_ROOT ANDROID_SDK_ROOT ANDROID_ABI ANDROID_SERIAL LABEL)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "${options}" "${one_value_args}" "")
 
     set(_bridge_binary_dir "${CMAKE_CURRENT_BINARY_DIR}/${NAME}")
@@ -18,6 +18,20 @@ function(_bridge_add_execution_test NAME)
     endif()
     if (ARG_LLVM_MINGW_ROOT)
         list(APPEND _bridge_arguments "-DBRIDGE_LLVM_MINGW_ROOT=${ARG_LLVM_MINGW_ROOT}")
+    endif()
+    if (ARG_ANDROID_NDK_ROOT)
+        list(APPEND _bridge_arguments "-DBRIDGE_ANDROID_NDK_ROOT=${ARG_ANDROID_NDK_ROOT}")
+    endif()
+    if (ARG_ANDROID_SDK_ROOT)
+        list(APPEND _bridge_arguments "-DBRIDGE_ANDROID_SDK_ROOT=${ARG_ANDROID_SDK_ROOT}")
+    endif()
+    if (ARG_ANDROID_ABI)
+        list(APPEND _bridge_arguments "-DBRIDGE_ANDROID_ABI=${ARG_ANDROID_ABI}")
+    endif()
+    if (ARG_REMOTE)
+        list(APPEND _bridge_arguments -DBRIDGE_REMOTE_EXECUTION=TRUE)
+    else()
+        list(APPEND _bridge_arguments -DBRIDGE_REMOTE_EXECUTION=FALSE)
     endif()
 
     if (ARG_EMULATED)
@@ -43,6 +57,28 @@ function(_bridge_add_execution_test NAME)
         PROPERTIES
             LABELS "${_bridge_labels}"
             TIMEOUT 120
+    )
+    if (ARG_ANDROID_SERIAL)
+        set_tests_properties(
+            "bridge.integration.execution.${NAME}"
+            PROPERTIES ENVIRONMENT "BRIDGE_ANDROID_SERIAL=${ARG_ANDROID_SERIAL}"
+        )
+    endif()
+endfunction()
+
+function(_bridge_add_android_runner_test NAME MODE)
+    add_test(
+        NAME "bridge.runner.android.${NAME}"
+        COMMAND
+            "${CMAKE_COMMAND}"
+            "-DBRIDGE_ANDROID_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-android.sh"
+            "-DBRIDGE_ANDROID_RUNNER_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/android-runner-${NAME}"
+            "-DBRIDGE_ANDROID_RUNNER_TEST_MODE=${MODE}"
+            -P "${PROJECT_SOURCE_DIR}/runner/android-test.cmake"
+    )
+    set_tests_properties(
+        "bridge.runner.android.${NAME}"
+        PROPERTIES LABELS "runner;android"
     )
 endfunction()
 
@@ -70,6 +106,11 @@ _bridge_add_win32_runner_test(output output)
 _bridge_add_win32_runner_test(exit-status exit)
 _bridge_add_win32_runner_test(anchor-reuse anchor)
 
+_bridge_add_android_runner_test(output output)
+_bridge_add_android_runner_test(arguments arguments)
+_bridge_add_android_runner_test(exit-status exit)
+_bridge_add_android_runner_test(device-selection selection)
+
 _bridge_add_execution_test(native)
 _bridge_add_execution_test(
     emulated
@@ -87,4 +128,45 @@ if (BRIDGE_WIN32_AVAILABLE)
     )
 else()
     message(STATUS "Bridge Win32 integration tests: disabled")
+endif()
+
+if (BRIDGE_ANDROID_AVAILABLE)
+    foreach(_bridge_android_abi IN ITEMS x86_64 arm64-v8a)
+        _bridge_find_android_device(
+            "${BRIDGE_ADB_EXECUTABLE}"
+            "${_bridge_android_abi}"
+            _bridge_android_device_available
+            _bridge_android_serial
+            _bridge_android_device_reason
+        )
+        if (_bridge_android_device_available)
+            if (_bridge_android_abi STREQUAL "arm64-v8a")
+                set(_bridge_android_profile arm64)
+            else()
+                set(_bridge_android_profile "${_bridge_android_abi}")
+            endif()
+            message(
+                STATUS
+                "Bridge Android ${_bridge_android_abi} integration tests: enabled (${_bridge_android_serial})"
+            )
+            _bridge_add_execution_test(
+                "android-${_bridge_android_profile}"
+                REMOTE
+                TOOLCHAIN "${PROJECT_SOURCE_DIR}/toolchains/bridge-android.cmake"
+                ANDROID_NDK_ROOT "${BRIDGE_ANDROID_DISCOVERED_NDK_ROOT}"
+                ANDROID_SDK_ROOT "${BRIDGE_ANDROID_DISCOVERED_SDK_ROOT}"
+                ANDROID_ABI "${_bridge_android_abi}"
+                ANDROID_SERIAL "${_bridge_android_serial}"
+                LABEL android
+            )
+        else()
+            message(
+                STATUS
+                "Bridge Android ${_bridge_android_abi} integration tests: disabled"
+            )
+            message(STATUS "  ${_bridge_android_device_reason}")
+        endif()
+    endforeach()
+else()
+    message(STATUS "Bridge Android integration tests: disabled")
 endif()
