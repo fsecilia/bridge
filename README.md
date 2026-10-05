@@ -52,3 +52,23 @@ bridge_add_sdl_android_application(
 `ASSET_DIRECTORY` copies the directory contents into the APK's `assets/` tree. `RUNTIME_TARGETS` can name additional shared-library targets that must ship beside `libmain.so` and `libSDL3.so`. Bridge rejects duplicate packaged targets and fails if two runtime libraries would overwrite the same staged library name. The packaging target exposes its APK path through the `BRIDGE_ANDROID_APK` target property.
 
 The packaging path uses a build-local debug signing key. Production signing, store packaging, and multi-ABI distribution remain separate concerns.
+
+### Android application runner
+
+Bridge can attach a developer run target to a packaged Android application. The run target depends on the APK, selects a compatible online device when invoked, installs or updates the package, stops any previous instance, and launches its Android activity. Device selection follows the same rule as headless execution: if more than one compatible device is online, set `BRIDGE_ANDROID_SERIAL`.
+
+```cmake
+include(external/bridge/cmake/BridgeAndroidRun.cmake)
+bridge_add_android_run_target(
+    TARGET game_run
+    APPLICATION_TARGET game_apk
+)
+```
+
+Then build and launch with one command:
+
+```sh
+cmake --build --preset android-arm64-debug --target game_run
+```
+
+The run target is developer tooling, not a test. It may build its APK dependency before installing it. CTest continues to execute only artifacts that the normal build graph has already produced.

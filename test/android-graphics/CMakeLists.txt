@@ -70,4 +70,10 @@ bridge_add_sdl_android_application(
     RUNTIME_TARGETS bridge_android_graphics_runtime
 )
 
+include("${PROJECT_SOURCE_DIR}/cmake/BridgeAndroidRun.cmake")
+bridge_add_android_run_target(
+    TARGET bridge_android_graphics_run
+    APPLICATION_TARGET bridge_android_graphics_apk
+)
+
 set(BRIDGE_ANDROID_GRAPHICS_APK "${_bridge_apk}" PARENT_SCOPE)

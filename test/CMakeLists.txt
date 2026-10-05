@@ -58,6 +58,22 @@ function(_bridge_add_android_runner_test NAME MODE)
     )
 endfunction()
 
+function(_bridge_add_android_app_runner_test NAME MODE)
+    add_test(
+        NAME "bridge.runner.android-app.${NAME}"
+        COMMAND
+            "${CMAKE_COMMAND}"
+            "-DBRIDGE_ANDROID_APP_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-android-app.sh"
+            "-DBRIDGE_ANDROID_APP_RUNNER_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/android-app-runner-${NAME}"
+            "-DBRIDGE_ANDROID_APP_RUNNER_TEST_MODE=${MODE}"
+            -P "${PROJECT_SOURCE_DIR}/runner/android-app-test.cmake"
+    )
+    set_tests_properties(
+        "bridge.runner.android-app.${NAME}"
+        PROPERTIES LABELS "runner;android"
+    )
+endfunction()
+
 function(_bridge_add_win32_runner_test NAME MODE)
     add_test(
         NAME "bridge.runner.win32.${NAME}"
@@ -152,6 +168,10 @@ _bridge_add_android_runner_test(output output)
 _bridge_add_android_runner_test(arguments arguments)
 _bridge_add_android_runner_test(exit-status exit)
 _bridge_add_android_runner_test(device-selection selection)
+
+_bridge_add_android_app_runner_test(run run)
+_bridge_add_android_app_runner_test(install-failure install-failure)
+_bridge_add_android_app_runner_test(device-selection selection)
 
 if(ANDROID)
     if(BRIDGE_ANDROID_RUNTIME_AVAILABLE)
