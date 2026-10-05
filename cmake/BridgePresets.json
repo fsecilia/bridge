@@ -61,7 +61,7 @@
       "hidden": true,
       "inherits": "bridge-android",
       "cacheVariables": {
-        "BRIDGE_ANDROID_ABI": "x86_64"
+        "CMAKE_ANDROID_ARCH_ABI": "x86_64"
       }
     },
     {
@@ -69,7 +69,7 @@
       "hidden": true,
       "inherits": "bridge-android",
       "cacheVariables": {
-        "BRIDGE_ANDROID_ABI": "arm64-v8a"
+        "CMAKE_ANDROID_ARCH_ABI": "arm64-v8a"
       }
     },
     {

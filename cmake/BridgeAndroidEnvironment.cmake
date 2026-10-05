@@ -3,45 +3,36 @@
 
 include_guard(GLOBAL)
 
-function(_bridge_validate_android_ndk_root ROOT OUT_VALID OUT_REVISION OUT_REASON)
-    if (NOT IS_ABSOLUTE "${ROOT}")
-        set(${OUT_VALID} FALSE PARENT_SCOPE)
-        set(${OUT_REVISION} "" PARENT_SCOPE)
-        set(${OUT_REASON} "Android NDK root must be an absolute path: ${ROOT}" PARENT_SCOPE)
-        return()
-    endif()
-
-    set(_toolchain "${ROOT}/build/cmake/android.toolchain.cmake")
-    if (NOT EXISTS "${_toolchain}")
-        set(${OUT_VALID} FALSE PARENT_SCOPE)
-        set(${OUT_REVISION} "" PARENT_SCOPE)
-        set(${OUT_REASON} "Android NDK CMake toolchain not found: ${_toolchain}" PARENT_SCOPE)
-        return()
-    endif()
-
-    set(_revision "unknown")
-    if (EXISTS "${ROOT}/source.properties")
-        file(STRINGS "${ROOT}/source.properties" _revision_line REGEX "^Pkg\\.Revision[ \t]*=")
-        if (_revision_line)
-            list(GET _revision_line 0 _revision_line)
-            string(REGEX REPLACE "^Pkg\\.Revision[ \t]*=[ \t]*" "" _revision "${_revision_line}")
-        endif()
-    endif()
-
-    set(${OUT_VALID} TRUE PARENT_SCOPE)
-    set(${OUT_REVISION} "${_revision}" PARENT_SCOPE)
-    set(${OUT_REASON} "" PARENT_SCOPE)
-endfunction()
-
-function(_bridge_find_android_sdk_root OUT_ROOT)
-    set(_candidates)
-
+function(_bridge_find_android_sdk_root OUT_ROOT OUT_REASON)
     if (DEFINED BRIDGE_ANDROID_SDK_ROOT AND NOT "${BRIDGE_ANDROID_SDK_ROOT}" STREQUAL "")
-        list(APPEND _candidates "${BRIDGE_ANDROID_SDK_ROOT}")
+        set(_sdk_root "${BRIDGE_ANDROID_SDK_ROOT}")
+        cmake_path(NORMAL_PATH _sdk_root OUTPUT_VARIABLE _sdk_root)
+        if (NOT IS_DIRECTORY "${_sdk_root}")
+            set(${OUT_ROOT} "" PARENT_SCOPE)
+            set(${OUT_REASON} "BRIDGE_ANDROID_SDK_ROOT is not a directory: ${_sdk_root}" PARENT_SCOPE)
+            return()
+        endif()
+
+        set(${OUT_ROOT} "${_sdk_root}" PARENT_SCOPE)
+        set(${OUT_REASON} "" PARENT_SCOPE)
+        return()
     endif()
+
     if (DEFINED ENV{BRIDGE_ANDROID_SDK_ROOT} AND NOT "$ENV{BRIDGE_ANDROID_SDK_ROOT}" STREQUAL "")
-        list(APPEND _candidates "$ENV{BRIDGE_ANDROID_SDK_ROOT}")
+        set(_sdk_root "$ENV{BRIDGE_ANDROID_SDK_ROOT}")
+        cmake_path(NORMAL_PATH _sdk_root OUTPUT_VARIABLE _sdk_root)
+        if (NOT IS_DIRECTORY "${_sdk_root}")
+            set(${OUT_ROOT} "" PARENT_SCOPE)
+            set(${OUT_REASON} "BRIDGE_ANDROID_SDK_ROOT environment variable is not a directory: ${_sdk_root}" PARENT_SCOPE)
+            return()
+        endif()
+
+        set(${OUT_ROOT} "${_sdk_root}" PARENT_SCOPE)
+        set(${OUT_REASON} "" PARENT_SCOPE)
+        return()
     endif()
+
+    set(_candidates)
     if (DEFINED ENV{ANDROID_HOME} AND NOT "$ENV{ANDROID_HOME}" STREQUAL "")
         list(APPEND _candidates "$ENV{ANDROID_HOME}")
     endif()
@@ -54,134 +45,52 @@ function(_bridge_find_android_sdk_root OUT_ROOT)
             "$ENV{HOME}/Library/Android/sdk"
         )
     endif()
+    list(APPEND _candidates "/opt/android-sdk")
+    list(REMOVE_DUPLICATES _candidates)
 
     foreach(_candidate IN LISTS _candidates)
         if (IS_DIRECTORY "${_candidate}")
             cmake_path(NORMAL_PATH _candidate OUTPUT_VARIABLE _candidate)
             set(${OUT_ROOT} "${_candidate}" PARENT_SCOPE)
+            set(${OUT_REASON} "" PARENT_SCOPE)
             return()
         endif()
     endforeach()
 
     set(${OUT_ROOT} "" PARENT_SCOPE)
+    set(${OUT_REASON} "" PARENT_SCOPE)
 endfunction()
 
-function(_bridge_find_latest_android_ndk SDK_ROOT OUT_ROOT OUT_REVISION)
-    set(_best_root "")
-    set(_best_revision "")
-
-    if (IS_DIRECTORY "${SDK_ROOT}/ndk")
-        file(GLOB _ndk_candidates LIST_DIRECTORIES TRUE "${SDK_ROOT}/ndk/*")
-        foreach(_candidate IN LISTS _ndk_candidates)
-            if (NOT IS_DIRECTORY "${_candidate}")
-                continue()
-            endif()
-
-            _bridge_validate_android_ndk_root(
-                "${_candidate}"
-                _valid
-                _revision
-                _reason
-            )
-            if (NOT _valid OR "${_revision}" STREQUAL "unknown")
-                continue()
-            endif()
-
-            if ("${_best_root}" STREQUAL "" OR _revision VERSION_GREATER _best_revision)
-                set(_best_root "${_candidate}")
-                set(_best_revision "${_revision}")
-            endif()
-        endforeach()
-    endif()
-
-    if ("${_best_root}" STREQUAL "" AND IS_DIRECTORY "${SDK_ROOT}/ndk-bundle")
-        _bridge_validate_android_ndk_root(
-            "${SDK_ROOT}/ndk-bundle"
-            _valid
-            _revision
-            _reason
-        )
-        if (_valid)
-            set(_best_root "${SDK_ROOT}/ndk-bundle")
-            set(_best_revision "${_revision}")
-        endif()
-    endif()
-
-    set(${OUT_ROOT} "${_best_root}" PARENT_SCOPE)
-    set(${OUT_REVISION} "${_best_revision}" PARENT_SCOPE)
-endfunction()
-
-function(_bridge_find_android_environment
-    OUT_AVAILABLE
-    OUT_SDK_ROOT
-    OUT_NDK_ROOT
-    OUT_NDK_REVISION
-    OUT_ADB
-    OUT_REASON)
-    _bridge_find_android_sdk_root(_sdk_root)
-
-    set(_ndk_root "")
-    set(_ndk_revision "")
-    set(_ndk_reason "")
-
-    if (DEFINED BRIDGE_ANDROID_NDK_ROOT AND NOT "${BRIDGE_ANDROID_NDK_ROOT}" STREQUAL "")
-        set(_ndk_root "${BRIDGE_ANDROID_NDK_ROOT}")
-    elseif (DEFINED ENV{BRIDGE_ANDROID_NDK_ROOT} AND NOT "$ENV{BRIDGE_ANDROID_NDK_ROOT}" STREQUAL "")
-        set(_ndk_root "$ENV{BRIDGE_ANDROID_NDK_ROOT}")
-    elseif (DEFINED ENV{ANDROID_NDK_ROOT} AND NOT "$ENV{ANDROID_NDK_ROOT}" STREQUAL "")
-        set(_ndk_root "$ENV{ANDROID_NDK_ROOT}")
-    elseif (DEFINED ENV{ANDROID_NDK_HOME} AND NOT "$ENV{ANDROID_NDK_HOME}" STREQUAL "")
-        set(_ndk_root "$ENV{ANDROID_NDK_HOME}")
-    elseif (NOT "${_sdk_root}" STREQUAL "")
-        _bridge_find_latest_android_ndk("${_sdk_root}" _ndk_root _ndk_revision)
-    endif()
-
-    if ("${_ndk_root}" STREQUAL "")
+function(_bridge_find_android_environment OUT_AVAILABLE OUT_SDK_ROOT OUT_ADB OUT_REASON)
+    _bridge_find_android_sdk_root(_sdk_root _sdk_reason)
+    if (NOT "${_sdk_reason}" STREQUAL "")
         set(${OUT_AVAILABLE} FALSE PARENT_SCOPE)
-        set(${OUT_SDK_ROOT} "${_sdk_root}" PARENT_SCOPE)
-        set(${OUT_NDK_ROOT} "" PARENT_SCOPE)
-        set(${OUT_NDK_REVISION} "" PARENT_SCOPE)
+        set(${OUT_SDK_ROOT} "" PARENT_SCOPE)
         set(${OUT_ADB} "" PARENT_SCOPE)
-        set(${OUT_REASON}
-            "Android NDK was not found; set BRIDGE_ANDROID_NDK_ROOT or install an NDK under ANDROID_HOME"
-            PARENT_SCOPE)
+        set(${OUT_REASON} "${_sdk_reason}" PARENT_SCOPE)
         return()
     endif()
-
-    cmake_path(NORMAL_PATH _ndk_root OUTPUT_VARIABLE _ndk_root)
-    _bridge_validate_android_ndk_root(
-        "${_ndk_root}"
-        _ndk_valid
-        _validated_revision
-        _ndk_reason
-    )
-    if (NOT _ndk_valid)
-        set(${OUT_AVAILABLE} FALSE PARENT_SCOPE)
-        set(${OUT_SDK_ROOT} "${_sdk_root}" PARENT_SCOPE)
-        set(${OUT_NDK_ROOT} "" PARENT_SCOPE)
-        set(${OUT_NDK_REVISION} "" PARENT_SCOPE)
-        set(${OUT_ADB} "" PARENT_SCOPE)
-        set(${OUT_REASON} "${_ndk_reason}" PARENT_SCOPE)
-        return()
-    endif()
-    set(_ndk_revision "${_validated_revision}")
 
     set(_adb "")
     if (NOT "${_sdk_root}" STREQUAL "" AND EXISTS "${_sdk_root}/platform-tools/adb")
         set(_adb "${_sdk_root}/platform-tools/adb")
     else()
-        find_program(_adb NAMES adb NO_CACHE)
+        find_program(
+            _adb
+            NAMES adb
+            NO_CACHE
+            NO_CMAKE_FIND_ROOT_PATH
+        )
     endif()
 
     if (NOT _adb)
         set(${OUT_AVAILABLE} FALSE PARENT_SCOPE)
         set(${OUT_SDK_ROOT} "${_sdk_root}" PARENT_SCOPE)
-        set(${OUT_NDK_ROOT} "${_ndk_root}" PARENT_SCOPE)
-        set(${OUT_NDK_REVISION} "${_ndk_revision}" PARENT_SCOPE)
         set(${OUT_ADB} "" PARENT_SCOPE)
         set(${OUT_REASON}
-            "adb was not found; install Android SDK platform-tools or make adb available on PATH"
-            PARENT_SCOPE)
+            "adb was not found; install Android SDK platform-tools or set BRIDGE_ANDROID_SDK_ROOT"
+            PARENT_SCOPE
+        )
         return()
     endif()
 
@@ -189,8 +98,6 @@ function(_bridge_find_android_environment
 
     set(${OUT_AVAILABLE} TRUE PARENT_SCOPE)
     set(${OUT_SDK_ROOT} "${_sdk_root}" PARENT_SCOPE)
-    set(${OUT_NDK_ROOT} "${_ndk_root}" PARENT_SCOPE)
-    set(${OUT_NDK_REVISION} "${_ndk_revision}" PARENT_SCOPE)
     set(${OUT_ADB} "${_adb}" PARENT_SCOPE)
     set(${OUT_REASON} "" PARENT_SCOPE)
 endfunction()
@@ -211,7 +118,8 @@ function(_bridge_find_android_device ADB ABI OUT_AVAILABLE OUT_SERIAL OUT_REASON
             set(${OUT_SERIAL} "" PARENT_SCOPE)
             set(${OUT_REASON}
                 "BRIDGE_ANDROID_SERIAL=${_requested_serial} is not an online adb device: ${_state_error}"
-                PARENT_SCOPE)
+                PARENT_SCOPE
+            )
             return()
         endif()
         set(_serials "${_requested_serial}")

@@ -62,6 +62,12 @@ case $1 in
         if [ "$1" = mkdir ] || [ "$1" = chmod ]; then
             exit 0
         fi
+        command=$1
+        shift
+        for argument in "$@"; do
+            command="$command $argument"
+        done
+        eval "set -- $command"
         shift
         exec /bin/sh "$state/deployed" "$@"
         ;;
@@ -76,6 +82,10 @@ set -eu
 case $1 in
     arguments)
         [ "$2" = "two words" ]
+        [ "$3" = "single'quote" ]
+        [ "$4" = '$dollar' ]
+        [ "$5" = 'back\slash' ]
+        [ "$6" = '' ]
         printf '%s\n' argument-marker
         ;;
     output)
@@ -123,7 +133,14 @@ if ("${BRIDGE_ANDROID_RUNNER_TEST_MODE}" STREQUAL "output")
     endif()
 elseif("${BRIDGE_ANDROID_RUNNER_TEST_MODE}" STREQUAL "arguments")
     execute_process(
-        COMMAND ${_runner_command} arguments "two words"
+        COMMAND
+            ${_runner_command}
+            arguments
+            "two words"
+            "single'quote"
+            "$dollar"
+            "back\\slash"
+            ""
         RESULT_VARIABLE _result
         OUTPUT_VARIABLE _stdout
         ERROR_VARIABLE _stderr

@@ -18,7 +18,9 @@ Machine-local paths do not need to be committed or added globally to `PATH`.
 
 ## Android prototype
 
-Bridge's Android profiles use the NDK's supported CMake toolchain file and deploy headless executables through `adb`. The toolchain honors `BRIDGE_ANDROID_NDK_ROOT` and `BRIDGE_ANDROID_SDK_ROOT`, then their environment-variable equivalents, then Android's standard SDK variables and common SDK install locations. When an SDK contains multiple side-by-side NDKs, Bridge selects the newest valid installation.
+Bridge's Android profiles use the NDK's supported CMake toolchain file and deploy headless executables through `adb`. The Android toolchain is intentionally limited to target establishment: NDK, ABI, minimum API, and the NDK toolchain itself. Use CMake's standard `CMAKE_ANDROID_NDK` variable as the explicit NDK override when automatic discovery is not sufficient.
+
+SDK and runtime discovery happen separately after the Android target has been established. Bridge prefers `<sdk>/platform-tools/adb` from the discovered SDK over a same-named host executable, and host-program fallback searches do not use Android target roots. `BRIDGE_ANDROID_SDK_ROOT` is an escape hatch for a nonstandard SDK location; ordinary installations should not require `PATH` or IDE environment changes.
 
 Bridge provides `android-x86_64-*` and `android-arm64-*` profiles for every Canon intent. The default Android platform is API 21 and can be overridden with `BRIDGE_ANDROID_PLATFORM`.
 

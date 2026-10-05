@@ -3,7 +3,7 @@
 
 function(_bridge_add_execution_test NAME)
     set(options EMULATED REMOTE)
-    set(one_value_args TOOLCHAIN LLVM_MINGW_ROOT ANDROID_NDK_ROOT ANDROID_SDK_ROOT ANDROID_ABI ANDROID_SERIAL LABEL)
+    set(one_value_args TOOLCHAIN LLVM_MINGW_ROOT CMAKE_ANDROID_NDK ANDROID_SDK_ROOT ANDROID_ARCH_ABI ANDROID_SERIAL LABEL)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "${options}" "${one_value_args}" "")
 
     set(_bridge_binary_dir "${CMAKE_CURRENT_BINARY_DIR}/${NAME}")
@@ -19,14 +19,14 @@ function(_bridge_add_execution_test NAME)
     if (ARG_LLVM_MINGW_ROOT)
         list(APPEND _bridge_arguments "-DBRIDGE_LLVM_MINGW_ROOT=${ARG_LLVM_MINGW_ROOT}")
     endif()
-    if (ARG_ANDROID_NDK_ROOT)
-        list(APPEND _bridge_arguments "-DBRIDGE_ANDROID_NDK_ROOT=${ARG_ANDROID_NDK_ROOT}")
+    if (ARG_CMAKE_ANDROID_NDK)
+        list(APPEND _bridge_arguments "-DCMAKE_ANDROID_NDK=${ARG_CMAKE_ANDROID_NDK}")
     endif()
     if (ARG_ANDROID_SDK_ROOT)
         list(APPEND _bridge_arguments "-DBRIDGE_ANDROID_SDK_ROOT=${ARG_ANDROID_SDK_ROOT}")
     endif()
-    if (ARG_ANDROID_ABI)
-        list(APPEND _bridge_arguments "-DBRIDGE_ANDROID_ABI=${ARG_ANDROID_ABI}")
+    if (ARG_ANDROID_ARCH_ABI)
+        list(APPEND _bridge_arguments "-DCMAKE_ANDROID_ARCH_ABI=${ARG_ANDROID_ARCH_ABI}")
     endif()
     if (ARG_REMOTE)
         list(APPEND _bridge_arguments -DBRIDGE_REMOTE_EXECUTION=TRUE)
@@ -130,7 +130,7 @@ else()
     message(STATUS "Bridge Win32 integration tests: disabled")
 endif()
 
-if (BRIDGE_ANDROID_AVAILABLE)
+if (BRIDGE_ANDROID_NDK_AVAILABLE AND BRIDGE_ANDROID_RUNTIME_AVAILABLE)
     foreach(_bridge_android_abi IN ITEMS x86_64 arm64-v8a)
         _bridge_find_android_device(
             "${BRIDGE_ADB_EXECUTABLE}"
@@ -153,9 +153,9 @@ if (BRIDGE_ANDROID_AVAILABLE)
                 "android-${_bridge_android_profile}"
                 REMOTE
                 TOOLCHAIN "${PROJECT_SOURCE_DIR}/toolchains/bridge-android.cmake"
-                ANDROID_NDK_ROOT "${BRIDGE_ANDROID_DISCOVERED_NDK_ROOT}"
+                CMAKE_ANDROID_NDK "${BRIDGE_ANDROID_DISCOVERED_NDK_ROOT}"
                 ANDROID_SDK_ROOT "${BRIDGE_ANDROID_DISCOVERED_SDK_ROOT}"
-                ANDROID_ABI "${_bridge_android_abi}"
+                ANDROID_ARCH_ABI "${_bridge_android_abi}"
                 ANDROID_SERIAL "${_bridge_android_serial}"
                 LABEL android
             )
@@ -169,4 +169,10 @@ if (BRIDGE_ANDROID_AVAILABLE)
     endforeach()
 else()
     message(STATUS "Bridge Android integration tests: disabled")
+    if (NOT BRIDGE_ANDROID_NDK_AVAILABLE)
+        message(STATUS "  ${BRIDGE_ANDROID_NDK_UNAVAILABLE_REASON}")
+    endif()
+    if (NOT BRIDGE_ANDROID_RUNTIME_AVAILABLE)
+        message(STATUS "  ${BRIDGE_ANDROID_RUNTIME_UNAVAILABLE_REASON}")
+    endif()
 endif()

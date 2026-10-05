@@ -20,6 +20,9 @@ shift 2
 program=$1
 shift
 
+if [ "$adb" = --adb-unavailable ]; then
+    fail "adb is unavailable; install Android SDK platform-tools or set BRIDGE_ANDROID_SDK_ROOT"
+fi
 if [ ! -x "$adb" ]; then
     fail "adb executable is not executable: $adb"
 fi
@@ -105,4 +108,18 @@ remote_program=$remote_dir/program
 "$adb" -s "$serial" shell chmod 700 "$remote_program" >/dev/null || \
     fail "could not make deployed target executable"
 
-exec "$adb" -s "$serial" shell "$remote_program" "$@"
+quote_remote_argument()
+{
+    escaped=$(printf '%sX' "$1" | sed "s/'/'\\\\''/g") || \
+        fail "could not quote Android target argument"
+    escaped=${escaped%X}
+    printf "'%s'" "$escaped"
+}
+
+remote_command=$(quote_remote_argument "$remote_program")
+for argument in "$@"; do
+    quoted_argument=$(quote_remote_argument "$argument")
+    remote_command="$remote_command $quoted_argument"
+done
+
+exec "$adb" -s "$serial" shell "$remote_command"
