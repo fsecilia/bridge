@@ -37,7 +37,7 @@ function(_bridge_uninstall_package_if_present)
     if(NOT "${_query_result}" STREQUAL "0")
         message(
             FATAL_ERROR
-            "Bridge Android graphics package query failed\n"
+            "Bridge Android graphics package query failed (${_query_result})\n"
             "stdout:\n${_query_output}\n"
             "stderr:\n${_query_error}"
         )
@@ -53,6 +53,25 @@ function(_bridge_uninstall_package_if_present)
     execute_process(
         COMMAND
             "${BRIDGE_ADB_EXECUTABLE}" -s "${BRIDGE_ANDROID_SERIAL}"
+            shell am force-stop "${_bridge_package}"
+        RESULT_VARIABLE _stop_result
+        OUTPUT_VARIABLE _stop_output
+        ERROR_VARIABLE _stop_error
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_STRIP_TRAILING_WHITESPACE
+    )
+    if(NOT "${_stop_result}" STREQUAL "0")
+        message(
+            FATAL_ERROR
+            "Bridge Android graphics package force-stop failed (${_stop_result})\n"
+            "stdout:\n${_stop_output}\n"
+            "stderr:\n${_stop_error}"
+        )
+    endif()
+
+    execute_process(
+        COMMAND
+            "${BRIDGE_ADB_EXECUTABLE}" -s "${BRIDGE_ANDROID_SERIAL}"
             uninstall "${_bridge_package}"
         RESULT_VARIABLE _uninstall_result
         OUTPUT_VARIABLE _uninstall_output
@@ -63,7 +82,7 @@ function(_bridge_uninstall_package_if_present)
     if(NOT "${_uninstall_result}" STREQUAL "0")
         message(
             FATAL_ERROR
-            "Bridge Android graphics package uninstall failed\n"
+            "Bridge Android graphics package uninstall failed (${_uninstall_result})\n"
             "stdout:\n${_uninstall_output}\n"
             "stderr:\n${_uninstall_error}"
         )
