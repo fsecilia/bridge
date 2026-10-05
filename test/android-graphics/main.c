@@ -7,22 +7,46 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
+bool bridgeAndroidGraphicsRuntimeReady(void);
+
 int main(int argc, char *argv[])
 {
     (void)argc;
     (void)argv;
 
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-        SDL_Log("Bridge graphics SDL_Init failed: %s", SDL_GetError());
+    if (!bridgeAndroidGraphicsRuntimeReady()) {
+        SDL_Log("Bridge graphics runtime library check failed");
         return 1;
     }
+
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
+        SDL_Log("Bridge graphics SDL_Init failed: %s", SDL_GetError());
+        return 2;
+    }
+
+    size_t assetSize = 0;
+    char *asset = SDL_LoadFile("bridge-asset.txt", &assetSize);
+    if (asset == NULL) {
+        SDL_Log("Bridge graphics asset load failed: %s", SDL_GetError());
+        SDL_Quit();
+        return 3;
+    }
+    static const char expectedAsset[] = "bridge android asset\n";
+    if (assetSize != sizeof(expectedAsset) - 1
+        || SDL_memcmp(asset, expectedAsset, sizeof(expectedAsset) - 1) != 0) {
+        SDL_Log("Bridge graphics asset contents are invalid");
+        SDL_free(asset);
+        SDL_Quit();
+        return 4;
+    }
+    SDL_free(asset);
 
     if (!SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES)
         || !SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2)
         || !SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0)) {
         SDL_Log("Bridge graphics GL attribute setup failed: %s", SDL_GetError());
         SDL_Quit();
-        return 2;
+        return 5;
     }
 
     SDL_Window *window = SDL_CreateWindow(
@@ -34,7 +58,7 @@ int main(int argc, char *argv[])
     if (window == NULL) {
         SDL_Log("Bridge graphics window creation failed: %s", SDL_GetError());
         SDL_Quit();
-        return 3;
+        return 6;
     }
 
     SDL_GLContext context = SDL_GL_CreateContext(window);
@@ -42,7 +66,7 @@ int main(int argc, char *argv[])
         SDL_Log("Bridge graphics context creation failed: %s", SDL_GetError());
         SDL_DestroyWindow(window);
         SDL_Quit();
-        return 4;
+        return 7;
     }
 
     glClearColor(0.08F, 0.45F, 0.78F, 1.0F);
@@ -64,12 +88,12 @@ int main(int argc, char *argv[])
         glClear(GL_COLOR_BUFFER_BIT);
         if (glGetError() != GL_NO_ERROR) {
             SDL_Log("Bridge graphics GLES clear failed");
-            result = 5;
+            result = 8;
             break;
         }
         if (!SDL_GL_SwapWindow(window)) {
             SDL_Log("Bridge graphics buffer swap failed: %s", SDL_GetError());
-            result = 6;
+            result = 9;
             break;
         }
 

@@ -26,4 +26,29 @@ Bridge provides `android-x86_64-*` and `android-arm64-*` profiles for every Cano
 
 The Android runner selects exactly one online device that supports the target ABI. If multiple compatible devices are connected, set `BRIDGE_ANDROID_SERIAL` to the desired adb serial. The runner pushes each headless executable to `/data/local/tmp`, marks it executable, and runs it through `adb shell` while preserving target arguments, stdout, stderr, and exit status.
 
-This first headless runner does not claim to mirror the host process environment or host working-directory contents onto Android. Tests that need environment variables or runtime files will need an explicit deployment contract rather than an implicit host-filesystem assumption. APK packaging for SDL3 applications is a separate later layer.
+This first headless runner does not claim to mirror the host process environment or host working-directory contents onto Android. Tests that need environment variables or runtime files need an explicit deployment contract rather than an implicit host-filesystem assumption.
+
+### SDL3 APK packaging
+
+Bridge can package an existing SDL3 Android shared-library target as a development APK. The consuming project still owns its targets. On Android, SDL requires the application entry point to live in a shared library that is loaded as `libmain.so`; Bridge does not rewrite an executable target into that form.
+
+```cmake
+add_library(main SHARED main.cpp)
+target_link_libraries(main PRIVATE SDL3::SDL3-shared)
+
+include(external/bridge/cmake/BridgeAndroidPackaging.cmake)
+bridge_add_sdl_android_application(
+    ALL
+    TARGET game_apk
+    APPLICATION_ID com.example.game
+    APPLICATION_NAME "Example Game"
+    MAIN_TARGET main
+    SDL_TARGET SDL3::SDL3-shared
+    SDL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/external/sdl3"
+    ASSET_DIRECTORY "${CMAKE_SOURCE_DIR}/assets"
+)
+```
+
+`ASSET_DIRECTORY` copies the directory contents into the APK's `assets/` tree. `RUNTIME_TARGETS` can name additional shared-library targets that must ship beside `libmain.so` and `libSDL3.so`. Bridge rejects duplicate packaged targets and fails if two runtime libraries would overwrite the same staged library name. The packaging target exposes its APK path through the `BRIDGE_ANDROID_APK` target property.
+
+The packaging path uses a build-local debug signing key. Production signing, store packaging, and multi-ABI distribution remain separate concerns.

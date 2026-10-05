@@ -41,22 +41,33 @@ if(NOT TARGET SDL3-shared)
     message(FATAL_ERROR "SDL source tree did not provide the required SDL3-shared target")
 endif()
 
+add_library(bridge_android_graphics_runtime SHARED runtime.c)
+target_compile_features(bridge_android_graphics_runtime PRIVATE c_std_17)
+
 add_library(bridge_android_graphics_main SHARED main.c)
 target_compile_features(bridge_android_graphics_main PRIVATE c_std_17)
-target_link_libraries(bridge_android_graphics_main PRIVATE SDL3::SDL3-shared GLESv2)
+target_link_libraries(
+    bridge_android_graphics_main
+    PRIVATE
+        bridge_android_graphics_runtime
+        SDL3::SDL3-shared
+        GLESv2
+)
 
 include("${PROJECT_SOURCE_DIR}/cmake/BridgeAndroidPackaging.cmake")
 set(_bridge_apk "${CMAKE_CURRENT_BINARY_DIR}/bridge-android-graphics.apk")
-_bridge_add_sdl_android_apk(
+bridge_add_sdl_android_application(
     ALL
     TARGET bridge_android_graphics_apk
     APPLICATION_ID com.bonkheavy.bridge.graphics
     APPLICATION_NAME "Bridge Android Graphics"
-    NATIVE_TARGET bridge_android_graphics_main
-    SDL_TARGET SDL3-shared
+    MAIN_TARGET bridge_android_graphics_main
+    SDL_TARGET SDL3::SDL3-shared
     SDL_SOURCE_DIR "${BRIDGE_ANDROID_GRAPHICS_SDL_SOURCE_DIR}"
     OUTPUT "${_bridge_apk}"
     MIN_API "${CMAKE_SYSTEM_VERSION}"
+    ASSET_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+    RUNTIME_TARGETS bridge_android_graphics_runtime
 )
 
 set(BRIDGE_ANDROID_GRAPHICS_APK "${_bridge_apk}" PARENT_SCOPE)

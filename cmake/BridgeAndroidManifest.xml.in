@@ -2,14 +2,11 @@
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="@BRIDGE_ANDROID_APPLICATION_ID@"
-    android:versionCode="1"
-    android:versionName="1.0">
+    android:versionCode="@BRIDGE_ANDROID_VERSION_CODE@"
+    android:versionName="@BRIDGE_ANDROID_VERSION_NAME@">
     <uses-sdk
         android:minSdkVersion="@BRIDGE_ANDROID_MIN_API@"
         android:targetSdkVersion="@BRIDGE_ANDROID_TARGET_API@" />
-    <uses-feature
-        android:glEsVersion="0x00020000"
-        android:required="true" />
     <application
         android:allowBackup="false"
         android:extractNativeLibs="true"
