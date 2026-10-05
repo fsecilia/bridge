@@ -1,6 +1,20 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Frank Secilia
 
+include("${PROJECT_SOURCE_DIR}/cmake/BridgeAndroidPackaging.cmake")
+
+set(BRIDGE_SDL_SOURCE_DIR "" CACHE PATH "SDL source tree used by Bridge Android graphics integration tests")
+if (NOT "${BRIDGE_SDL_SOURCE_DIR}" STREQUAL "")
+    if (NOT EXISTS "${BRIDGE_SDL_SOURCE_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR "BRIDGE_SDL_SOURCE_DIR is not an SDL source tree: ${BRIDGE_SDL_SOURCE_DIR}")
+    endif()
+    set(_bridge_sdl_source_dir "${BRIDGE_SDL_SOURCE_DIR}")
+elseif (EXISTS "${PROJECT_SOURCE_DIR}/external/sdl3/CMakeLists.txt")
+    set(_bridge_sdl_source_dir "${PROJECT_SOURCE_DIR}/external/sdl3")
+else()
+    set(_bridge_sdl_source_dir "")
+endif()
+
 function(_bridge_add_execution_test NAME)
     set(options EMULATED REMOTE)
     set(one_value_args TOOLCHAIN LLVM_MINGW_ROOT CMAKE_ANDROID_NDK ANDROID_SDK_ROOT ANDROID_ARCH_ABI ANDROID_SERIAL LABEL)
@@ -64,6 +78,43 @@ function(_bridge_add_execution_test NAME)
             PROPERTIES ENVIRONMENT "BRIDGE_ANDROID_SERIAL=${ARG_ANDROID_SERIAL}"
         )
     endif()
+endfunction()
+
+
+function(_bridge_add_android_graphics_test NAME)
+    set(one_value_args
+        TOOLCHAIN
+        CMAKE_ANDROID_NDK
+        ANDROID_SDK_ROOT
+        ANDROID_ARCH_ABI
+        ANDROID_SERIAL
+        SDL_SOURCE_DIR
+    )
+    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "${one_value_args}" "")
+
+    set(_bridge_binary_dir "${CMAKE_CURRENT_BINARY_DIR}/graphics-${NAME}")
+    add_test(
+        NAME "bridge.integration.graphics.${NAME}"
+        COMMAND
+            "${CMAKE_COMMAND}"
+            "-DBRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "-DBRIDGE_BINARY_DIR=${_bridge_binary_dir}"
+            "-DBRIDGE_GENERATOR=${CMAKE_GENERATOR}"
+            "-DBRIDGE_TOOLCHAIN_FILE=${ARG_TOOLCHAIN}"
+            "-DCMAKE_ANDROID_NDK=${ARG_CMAKE_ANDROID_NDK}"
+            "-DBRIDGE_ANDROID_SDK_ROOT=${ARG_ANDROID_SDK_ROOT}"
+            "-DBRIDGE_ADB_EXECUTABLE=${BRIDGE_ADB_EXECUTABLE}"
+            "-DCMAKE_ANDROID_ARCH_ABI=${ARG_ANDROID_ARCH_ABI}"
+            "-DBRIDGE_ANDROID_SERIAL=${ARG_ANDROID_SERIAL}"
+            "-DBRIDGE_SDL_SOURCE_DIR=${ARG_SDL_SOURCE_DIR}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/android-graphics/test.cmake"
+    )
+    set_tests_properties(
+        "bridge.integration.graphics.${NAME}"
+        PROPERTIES
+            LABELS "integration;android;graphics"
+            TIMEOUT 240
+    )
 endfunction()
 
 function(_bridge_add_android_runner_test NAME MODE)
@@ -169,6 +220,72 @@ if (BRIDGE_ANDROID_NDK_AVAILABLE AND BRIDGE_ANDROID_RUNTIME_AVAILABLE)
     endforeach()
 else()
     message(STATUS "Bridge Android integration tests: disabled")
+    if (NOT BRIDGE_ANDROID_NDK_AVAILABLE)
+        message(STATUS "  ${BRIDGE_ANDROID_NDK_UNAVAILABLE_REASON}")
+    endif()
+    if (NOT BRIDGE_ANDROID_RUNTIME_AVAILABLE)
+        message(STATUS "  ${BRIDGE_ANDROID_RUNTIME_UNAVAILABLE_REASON}")
+    endif()
+endif()
+
+if (BRIDGE_ANDROID_NDK_AVAILABLE AND BRIDGE_ANDROID_RUNTIME_AVAILABLE)
+    _bridge_find_android_packaging_environment(
+        _bridge_android_packaging_available
+        _bridge_android_jar
+        _bridge_android_target_api
+        _bridge_aapt2
+        _bridge_d8
+        _bridge_zipalign
+        _bridge_apksigner
+        _bridge_javac
+        _bridge_jar
+        _bridge_keytool
+        _bridge_zip
+        _bridge_android_packaging_reason
+    )
+    _bridge_find_android_device(
+        "${BRIDGE_ADB_EXECUTABLE}"
+        x86_64
+        _bridge_android_graphics_device_available
+        _bridge_android_graphics_serial
+        _bridge_android_graphics_device_reason
+    )
+
+    if (
+        _bridge_android_packaging_available
+        AND _bridge_android_graphics_device_available
+        AND NOT "${_bridge_sdl_source_dir}" STREQUAL ""
+    )
+        message(
+            STATUS
+            "Bridge Android graphics integration test: enabled (${_bridge_android_graphics_serial})"
+        )
+        _bridge_add_android_graphics_test(
+            android-x86_64
+            TOOLCHAIN "${PROJECT_SOURCE_DIR}/toolchains/bridge-android.cmake"
+            CMAKE_ANDROID_NDK "${BRIDGE_ANDROID_DISCOVERED_NDK_ROOT}"
+            ANDROID_SDK_ROOT "${BRIDGE_ANDROID_DISCOVERED_SDK_ROOT}"
+            ANDROID_ARCH_ABI x86_64
+            ANDROID_SERIAL "${_bridge_android_graphics_serial}"
+            SDL_SOURCE_DIR "${_bridge_sdl_source_dir}"
+        )
+    else()
+        message(STATUS "Bridge Android graphics integration test: disabled")
+        if (NOT _bridge_android_packaging_available)
+            message(STATUS "  ${_bridge_android_packaging_reason}")
+        endif()
+        if (NOT _bridge_android_graphics_device_available)
+            message(STATUS "  ${_bridge_android_graphics_device_reason}")
+        endif()
+        if ("${_bridge_sdl_source_dir}" STREQUAL "")
+            message(
+                STATUS
+                "  SDL source tree not found; set BRIDGE_SDL_SOURCE_DIR or place SDL under external/sdl3"
+            )
+        endif()
+    endif()
+else()
+    message(STATUS "Bridge Android graphics integration test: disabled")
     if (NOT BRIDGE_ANDROID_NDK_AVAILABLE)
         message(STATUS "  ${BRIDGE_ANDROID_NDK_UNAVAILABLE_REASON}")
     endif()
