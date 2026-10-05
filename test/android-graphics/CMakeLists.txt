@@ -4,10 +4,10 @@
 if(NOT ANDROID)
     message(FATAL_ERROR "Bridge Android graphics specimen requires an Android target")
 endif()
-if(NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+if(NOT CMAKE_ANDROID_ARCH_ABI MATCHES "^(x86_64|arm64-v8a)$")
     message(
         FATAL_ERROR
-        "Bridge Android graphics specimen requires x86_64, got ${CMAKE_ANDROID_ARCH_ABI}"
+        "Bridge Android graphics specimen requires x86_64 or arm64-v8a, got ${CMAKE_ANDROID_ARCH_ABI}"
     )
 endif()
 if(NOT DEFINED BRIDGE_ANDROID_GRAPHICS_SDL_SOURCE_DIR OR "${BRIDGE_ANDROID_GRAPHICS_SDL_SOURCE_DIR}" STREQUAL "")

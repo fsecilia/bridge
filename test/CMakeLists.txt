@@ -219,7 +219,7 @@ else()
     endif()
 endif()
 
-if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+if(ANDROID AND CMAKE_ANDROID_ARCH_ABI MATCHES "^(x86_64|arm64-v8a)$")
     _bridge_find_android_packaging_environment(
         _bridge_android_packaging_available
         _bridge_android_jar
@@ -243,7 +243,7 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
         if(BRIDGE_ANDROID_RUNTIME_AVAILABLE)
             _bridge_find_android_device(
                 "${BRIDGE_ADB_EXECUTABLE}"
-                x86_64
+                "${CMAKE_ANDROID_ARCH_ABI}"
                 _bridge_android_graphics_device_available
                 _bridge_android_graphics_serial
                 _bridge_android_graphics_device_reason
@@ -258,8 +258,13 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
                 STATUS
                 "Bridge Android graphics integration test: enabled (${_bridge_android_graphics_serial})"
             )
+            if(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+                set(_bridge_android_graphics_profile arm64)
+            else()
+                set(_bridge_android_graphics_profile "${CMAKE_ANDROID_ARCH_ABI}")
+            endif()
             _bridge_add_android_graphics_test(
-                android-x86_64
+                "android-${_bridge_android_graphics_profile}"
                 APK "${BRIDGE_ANDROID_GRAPHICS_APK}"
                 ANDROID_SERIAL "${_bridge_android_graphics_serial}"
             )
