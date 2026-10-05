@@ -134,7 +134,7 @@ function(
 endfunction()
 
 function(_bridge_add_sdl_android_apk)
-    set(options "")
+    set(options ALL)
     set(
         one_value_args
         TARGET
@@ -316,5 +316,9 @@ function(_bridge_add_sdl_android_apk)
         VERBATIM
     )
 
-    add_custom_target("${ARG_TARGET}" DEPENDS "${ARG_OUTPUT}")
+    if(ARG_ALL)
+        add_custom_target("${ARG_TARGET}" ALL DEPENDS "${ARG_OUTPUT}")
+    else()
+        add_custom_target("${ARG_TARGET}" DEPENDS "${ARG_OUTPUT}")
+    endif()
 endfunction()

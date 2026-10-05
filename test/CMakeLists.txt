@@ -82,38 +82,29 @@ endfunction()
 
 
 function(_bridge_add_android_graphics_test NAME)
-    set(one_value_args
-        TOOLCHAIN
-        CMAKE_ANDROID_NDK
-        ANDROID_SDK_ROOT
-        ANDROID_ARCH_ABI
-        ANDROID_SERIAL
-        SDL_SOURCE_DIR
-    )
+    set(one_value_args APK ANDROID_SERIAL)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "" "${one_value_args}" "")
 
-    set(_bridge_binary_dir "${CMAKE_CURRENT_BINARY_DIR}/graphics-${NAME}")
+    foreach(_required IN ITEMS APK ANDROID_SERIAL)
+        if(NOT ARG_${_required})
+            message(FATAL_ERROR "_bridge_add_android_graphics_test(): ${_required} is required")
+        endif()
+    endforeach()
+
     add_test(
         NAME "bridge.integration.graphics.${NAME}"
         COMMAND
             "${CMAKE_COMMAND}"
-            "-DBRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
-            "-DBRIDGE_BINARY_DIR=${_bridge_binary_dir}"
-            "-DBRIDGE_GENERATOR=${CMAKE_GENERATOR}"
-            "-DBRIDGE_TOOLCHAIN_FILE=${ARG_TOOLCHAIN}"
-            "-DCMAKE_ANDROID_NDK=${ARG_CMAKE_ANDROID_NDK}"
-            "-DBRIDGE_ANDROID_SDK_ROOT=${ARG_ANDROID_SDK_ROOT}"
+            "-DBRIDGE_APK=${ARG_APK}"
             "-DBRIDGE_ADB_EXECUTABLE=${BRIDGE_ADB_EXECUTABLE}"
-            "-DCMAKE_ANDROID_ARCH_ABI=${ARG_ANDROID_ARCH_ABI}"
             "-DBRIDGE_ANDROID_SERIAL=${ARG_ANDROID_SERIAL}"
-            "-DBRIDGE_SDL_SOURCE_DIR=${ARG_SDL_SOURCE_DIR}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/android-graphics/test.cmake"
     )
     set_tests_properties(
         "bridge.integration.graphics.${NAME}"
         PROPERTIES
             LABELS "integration;android;graphics"
-            TIMEOUT 240
+            TIMEOUT 120
     )
 endfunction()
 
@@ -228,7 +219,7 @@ else()
     endif()
 endif()
 
-if (BRIDGE_ANDROID_NDK_AVAILABLE AND BRIDGE_ANDROID_RUNTIME_AVAILABLE)
+if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
     _bridge_find_android_packaging_environment(
         _bridge_android_packaging_available
         _bridge_android_jar
@@ -243,53 +234,50 @@ if (BRIDGE_ANDROID_NDK_AVAILABLE AND BRIDGE_ANDROID_RUNTIME_AVAILABLE)
         _bridge_zip
         _bridge_android_packaging_reason
     )
-    _bridge_find_android_device(
-        "${BRIDGE_ADB_EXECUTABLE}"
-        x86_64
-        _bridge_android_graphics_device_available
-        _bridge_android_graphics_serial
-        _bridge_android_graphics_device_reason
-    )
 
-    if (
-        _bridge_android_packaging_available
-        AND _bridge_android_graphics_device_available
-        AND NOT "${_bridge_sdl_source_dir}" STREQUAL ""
-    )
-        message(
-            STATUS
-            "Bridge Android graphics integration test: enabled (${_bridge_android_graphics_serial})"
-        )
-        _bridge_add_android_graphics_test(
-            android-x86_64
-            TOOLCHAIN "${PROJECT_SOURCE_DIR}/toolchains/bridge-android.cmake"
-            CMAKE_ANDROID_NDK "${BRIDGE_ANDROID_DISCOVERED_NDK_ROOT}"
-            ANDROID_SDK_ROOT "${BRIDGE_ANDROID_DISCOVERED_SDK_ROOT}"
-            ANDROID_ARCH_ABI x86_64
-            ANDROID_SERIAL "${_bridge_android_graphics_serial}"
-            SDL_SOURCE_DIR "${_bridge_sdl_source_dir}"
-        )
-    else()
-        message(STATUS "Bridge Android graphics integration test: disabled")
-        if (NOT _bridge_android_packaging_available)
-            message(STATUS "  ${_bridge_android_packaging_reason}")
+    if(_bridge_android_packaging_available AND NOT "${_bridge_sdl_source_dir}" STREQUAL "")
+        message(STATUS "Bridge Android graphics APK: enabled")
+        set(BRIDGE_ANDROID_GRAPHICS_SDL_SOURCE_DIR "${_bridge_sdl_source_dir}")
+        add_subdirectory(android-graphics)
+
+        if(BRIDGE_ANDROID_RUNTIME_AVAILABLE)
+            _bridge_find_android_device(
+                "${BRIDGE_ADB_EXECUTABLE}"
+                x86_64
+                _bridge_android_graphics_device_available
+                _bridge_android_graphics_serial
+                _bridge_android_graphics_device_reason
+            )
+        else()
+            set(_bridge_android_graphics_device_available FALSE)
+            set(_bridge_android_graphics_device_reason "${BRIDGE_ANDROID_RUNTIME_UNAVAILABLE_REASON}")
         endif()
-        if (NOT _bridge_android_graphics_device_available)
+
+        if(_bridge_android_graphics_device_available)
+            message(
+                STATUS
+                "Bridge Android graphics integration test: enabled (${_bridge_android_graphics_serial})"
+            )
+            _bridge_add_android_graphics_test(
+                android-x86_64
+                APK "${BRIDGE_ANDROID_GRAPHICS_APK}"
+                ANDROID_SERIAL "${_bridge_android_graphics_serial}"
+            )
+        else()
+            message(STATUS "Bridge Android graphics integration test: disabled")
             message(STATUS "  ${_bridge_android_graphics_device_reason}")
         endif()
-        if ("${_bridge_sdl_source_dir}" STREQUAL "")
+    else()
+        message(STATUS "Bridge Android graphics APK: disabled")
+        if(NOT _bridge_android_packaging_available)
+            message(STATUS "  ${_bridge_android_packaging_reason}")
+        endif()
+        if("${_bridge_sdl_source_dir}" STREQUAL "")
             message(
                 STATUS
                 "  SDL source tree not found; set BRIDGE_SDL_SOURCE_DIR or place SDL under external/sdl3"
             )
         endif()
-    endif()
-else()
-    message(STATUS "Bridge Android graphics integration test: disabled")
-    if (NOT BRIDGE_ANDROID_NDK_AVAILABLE)
-        message(STATUS "  ${BRIDGE_ANDROID_NDK_UNAVAILABLE_REASON}")
-    endif()
-    if (NOT BRIDGE_ANDROID_RUNTIME_AVAILABLE)
-        message(STATUS "  ${BRIDGE_ANDROID_RUNTIME_UNAVAILABLE_REASON}")
+        message(STATUS "Bridge Android graphics integration test: disabled")
     endif()
 endif()
