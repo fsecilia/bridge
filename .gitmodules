@@ -4,3 +4,6 @@
 [submodule "external/canon"]
 	path = external/canon
 	url = https://github.com/fsecilia/canon.git
+[submodule "external/sdl3"]
+	path = external/sdl3
+	url = https://github.com/libsdl-org/SDL.git
