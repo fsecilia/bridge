@@ -119,12 +119,13 @@ endif()
 execute_process(
     COMMAND
         "${BRIDGE_ADB_EXECUTABLE}" -s "${BRIDGE_ANDROID_SERIAL}"
-        shell am start -W -n "${_bridge_package}/${_bridge_activity}"
+        shell am start -n "${_bridge_package}/${_bridge_activity}"
     RESULT_VARIABLE _launch_result
     OUTPUT_VARIABLE _launch_output
     ERROR_VARIABLE _launch_error
     OUTPUT_STRIP_TRAILING_WHITESPACE
     ERROR_STRIP_TRAILING_WHITESPACE
+    TIMEOUT 10
 )
 if(NOT "${_launch_result}" STREQUAL "0")
     message(

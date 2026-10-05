@@ -46,23 +46,9 @@ int main(int argc, char *argv[])
     }
 
     glClearColor(0.08F, 0.45F, 0.78F, 1.0F);
-    glClear(GL_COLOR_BUFFER_BIT);
-    if (glGetError() != GL_NO_ERROR) {
-        SDL_Log("Bridge graphics GLES clear failed");
-        SDL_GL_DestroyContext(context);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 5;
-    }
-    if (!SDL_GL_SwapWindow(window)) {
-        SDL_Log("Bridge graphics buffer swap failed: %s", SDL_GetError());
-        SDL_GL_DestroyContext(context);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 6;
-    }
-    SDL_Log("bridge android graphics ready");
 
+    int result = 0;
+    bool ready = false;
     bool running = true;
     while (running) {
         SDL_Event event;
@@ -71,11 +57,32 @@ int main(int argc, char *argv[])
                 running = false;
             }
         }
+        if (!running) {
+            break;
+        }
+
+        glClear(GL_COLOR_BUFFER_BIT);
+        if (glGetError() != GL_NO_ERROR) {
+            SDL_Log("Bridge graphics GLES clear failed");
+            result = 5;
+            break;
+        }
+        if (!SDL_GL_SwapWindow(window)) {
+            SDL_Log("Bridge graphics buffer swap failed: %s", SDL_GetError());
+            result = 6;
+            break;
+        }
+
+        if (!ready) {
+            SDL_Log("bridge android graphics ready");
+            ready = true;
+        }
+
         SDL_Delay(16);
     }
 
     SDL_GL_DestroyContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    return 0;
+    return result;
 }
