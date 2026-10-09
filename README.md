@@ -11,6 +11,30 @@ On Wayland hosts, the Wine runner checks `WAYLAND_DISPLAY` and its Unix socket. 
 A project using Bridge can include `external/bridge/cmake/BridgePresets.json` from its `CMakePresets.json`. Bridge's preset file includes Canon's presets and adds `win32-debug`, `win32-release`, `win32-asan`, `win32-tidy`, and `win32-coverage` with matching build, test, and workflow presets.
 Preset composition reads Canon from `external/canon` in the consuming source tree, so Bridge and the consumer use the same Canon preset policy.
 
+Bridge also exposes a consumer-facing Win32 run target, parallel to its Android
+application run target. The run target depends on the consumer's executable,
+invokes the same Wine runner used by Bridge tests, and preserves Wine's display
+selection and LLVM-MinGW runtime configuration. Cross-compilation still works
+without Wine installed; invoking the run target then fails explicitly.
+
+```cmake
+include(external/bridge/cmake/BridgeWin32Run.cmake)
+bridge_add_win32_run_target(
+    TARGET game_run
+    APPLICATION_TARGET game_exe
+)
+```
+
+Build and run with one command:
+
+```sh
+cmake --build --preset win32-debug --target game_run
+```
+
+The target is intended for IDE and developer workflows, not for CTest. CMake
+Tools does not treat CMake custom build targets as debugger launch targets;
+IDEs can invoke the build target through their task integration.
+
 If LLVM-MinGW is installed in a nonstandard location, set the root explicitly when configuring:
 
 ```bash
