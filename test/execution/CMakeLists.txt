@@ -50,6 +50,11 @@ endif()
 add_executable(bridge_execution_specimen execution.cpp)
 target_compile_features(bridge_execution_specimen PRIVATE cxx_std_26)
 
+if(WIN32)
+    enable_language(RC)
+    target_sources(bridge_execution_specimen PRIVATE win32-resource.rc)
+endif()
+
 function(_bridge_add_execution_case NAME)
     add_test(
         NAME "bridge.integration.execution.${BRIDGE_EXECUTION_PROFILE}.${NAME}"
@@ -75,6 +80,10 @@ function(_bridge_add_execution_case NAME)
 endfunction()
 
 _bridge_add_execution_case(arguments arguments "two words")
+
+if(WIN32)
+    _bridge_add_execution_case(resource resource)
+endif()
 
 if(NOT BRIDGE_REMOTE_EXECUTION)
     _bridge_add_execution_case(environment environment)

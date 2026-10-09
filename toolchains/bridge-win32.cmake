@@ -24,6 +24,12 @@ set(CMAKE_SYSTEM_PROCESSOR AMD64)
 set(CMAKE_C_COMPILER "${_bridge_c_compiler}")
 set(CMAKE_CXX_COMPILER "${_bridge_cxx_compiler}")
 
+set(_bridge_rc_compiler "${_bridge_llvm_mingw_root}/bin/x86_64-w64-mingw32-windres")
+if(NOT EXISTS "${_bridge_rc_compiler}")
+    message(FATAL_ERROR "Bridge Win32 resource compiler not found: ${_bridge_rc_compiler}")
+endif()
+set(CMAKE_RC_COMPILER "${_bridge_rc_compiler}")
+
 set(_bridge_win32_runner "${CMAKE_CURRENT_LIST_DIR}/../runner/bridge-win32.sh")
 if (NOT EXISTS "${_bridge_win32_runner}")
     message(FATAL_ERROR "Bridge Win32 runner not found: ${_bridge_win32_runner}")

@@ -8,6 +8,10 @@
 #include <iostream>
 #include <string_view>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace {
 
 auto testArguments(int argc, char const* const* argv) -> int
@@ -45,6 +49,18 @@ auto testFailure() -> int
     return 7;
 }
 
+#ifdef _WIN32
+auto testResource() -> int
+{
+    auto const resource = FindResource(nullptr, MAKEINTRESOURCE(1), RT_RCDATA);
+    if (resource == nullptr) {
+        return 1;
+    }
+
+    return SizeofResource(nullptr, resource) > 0 ? 0 : 1;
+}
+#endif
+
 } // namespace
 
 int main(int argc, char const* const* argv)
@@ -69,6 +85,11 @@ int main(int argc, char const* const* argv)
     if (mode == "failure") {
         return testFailure();
     }
+#ifdef _WIN32
+    if (mode == "resource") {
+        return testResource();
+    }
+#endif
 
     return 1;
 }
