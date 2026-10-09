@@ -25,11 +25,13 @@ set -eu
 if [ "$#" -ge 3 ] && [ "$1" = "cmd" ] && [ "$2" = "/c" ]; then
     case $3 in
         ping*)
+            printf 'anchor-display:%s\n' "${DISPLAY-unset}" >>"$BRIDGE_FAKE_WINE_LOG"
             printf '%s\n' anchor >>"$BRIDGE_FAKE_WINE_LOG"
             sleep 3
             exit 0
             ;;
         exit)
+            printf 'ready-display:%s\n' "${DISPLAY-unset}" >>"$BRIDGE_FAKE_WINE_LOG"
             printf '%s\n' ready >>"$BRIDGE_FAKE_WINE_LOG"
             exit 0
             ;;
@@ -57,6 +59,9 @@ case $1 in
     exit)
         exit "$2"
         ;;
+    display)
+        printf 'display:%s\n' "${DISPLAY-unset}"
+        ;;
 esac
 ]=])
 file(
@@ -67,11 +72,51 @@ file(
         WORLD_READ WORLD_EXECUTE
 )
 
+set(_display ":8")
+set(_wayland_display "")
+if(BRIDGE_RUNNER_TEST_MODE MATCHES "^wayland")
+    if(NOT DEFINED BRIDGE_RUNNER_TEST_SOCKET_FIXTURE)
+        message(FATAL_ERROR "BRIDGE_RUNNER_TEST_SOCKET_FIXTURE is required for Wayland tests")
+    endif()
+    set(_wayland_display "bridge-wayland-test")
+    set(_socket_path "${BRIDGE_RUNNER_TEST_BINARY_DIR}/state/${_wayland_display}")
+    file(MAKE_DIRECTORY "${BRIDGE_RUNNER_TEST_BINARY_DIR}/state")
+
+    if(BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland" OR
+        BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-absolute" OR
+        BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-native-only")
+        execute_process(
+            COMMAND "${BRIDGE_RUNNER_TEST_SOCKET_FIXTURE}" "${_socket_path}"
+            RESULT_VARIABLE _socket_result
+        )
+        if(NOT "${_socket_result}" STREQUAL "0")
+            message(FATAL_ERROR "Could not create the test Wayland socket: ${_socket_result}")
+        endif()
+        if(BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-absolute")
+            set(_wayland_display "${_socket_path}")
+        endif()
+    else()
+        file(WRITE "${_socket_path}" "not a socket")
+        if(BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-unavailable-no-x11")
+            set(_display "")
+        endif()
+    endif()
+endif()
+if(BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-native-only")
+    set(_display "")
+endif()
+set(_runtime_dir "${BRIDGE_RUNNER_TEST_BINARY_DIR}/state")
+if(BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-missing-runtime")
+    set(_runtime_dir "")
+endif()
+
 set(_runner_command
     "${CMAKE_COMMAND}" -E env
+    "DISPLAY=${_display}"
+    "WAYLAND_DISPLAY=${_wayland_display}"
     "BRIDGE_FAKE_WINE_LOG=${_log}"
     "WINEPREFIX=${BRIDGE_RUNNER_TEST_BINARY_DIR}/prefix"
-    "XDG_RUNTIME_DIR=${BRIDGE_RUNNER_TEST_BINARY_DIR}/state"
+    "XDG_RUNTIME_DIR=${_runtime_dir}"
     "WINEPATH=C:\\existing"
     "${BRIDGE_RUNNER}"
     "${_fake_wine}"
@@ -103,6 +148,49 @@ elseif("${BRIDGE_RUNNER_TEST_MODE}" STREQUAL "exit")
     )
     if (NOT "${_result}" STREQUAL "17")
         message(FATAL_ERROR "Bridge Win32 runner changed target exit status: ${_result}")
+    endif()
+elseif(BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland" OR
+    BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-absolute" OR
+    BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-native-only" OR
+    BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-unavailable" OR
+    BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-missing-runtime")
+    execute_process(
+        COMMAND ${_runner_command} display
+        RESULT_VARIABLE _result
+        OUTPUT_VARIABLE _stdout
+        ERROR_VARIABLE _stderr
+    )
+    if(NOT "${_result}" STREQUAL "0")
+        message(FATAL_ERROR "Bridge Win32 display probe failed: ${_result}\n${_stderr}")
+    endif()
+    if(BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-unavailable" OR
+        BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-missing-runtime")
+        if(NOT "${_stdout}" STREQUAL "display::8\n" OR
+            NOT "${_stderr}" MATCHES "retaining DISPLAY for Wine X11")
+            message(FATAL_ERROR "Bridge should retain X11 when Wayland is unavailable: ${_stdout} ${_stderr}")
+        endif()
+    else()
+        if(NOT "${_stdout}" STREQUAL "display:unset\n" OR
+            NOT "${_stderr}" MATCHES "using Wine Wayland display")
+            message(FATAL_ERROR "Bridge did not select Wayland: ${_stdout} ${_stderr}")
+        endif()
+
+        file(STRINGS "${_log}" _anchor_displays REGEX "^anchor-display:")
+        file(STRINGS "${_log}" _ready_displays REGEX "^ready-display:")
+        if(NOT "${_anchor_displays}" STREQUAL "anchor-display:unset" OR
+            NOT "${_ready_displays}" STREQUAL "ready-display:unset")
+            message(FATAL_ERROR "Bridge did not apply Wayland to Wine startup: ${_anchor_displays};${_ready_displays}")
+        endif()
+    endif()
+elseif(BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-unavailable-no-x11")
+    execute_process(
+        COMMAND ${_runner_command} display
+        RESULT_VARIABLE _result
+        ERROR_VARIABLE _stderr
+    )
+    if(NOT "${_result}" STREQUAL "1" OR
+        NOT "${_stderr}" MATCHES "DISPLAY is also unset")
+        message(FATAL_ERROR "Bridge did not report unusable display environment: ${_result} ${_stderr}")
     endif()
 elseif("${BRIDGE_RUNNER_TEST_MODE}" STREQUAL "anchor")
     execute_process(

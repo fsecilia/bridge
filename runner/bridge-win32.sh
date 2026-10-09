@@ -29,6 +29,37 @@ if [ ! -d "$runtime_dir" ]; then
     fail "LLVM-MinGW runtime directory does not exist: $runtime_dir"
 fi
 
+# Wine prefers X11 when DISPLAY is set, even on a Wayland session. Select
+# native Wayland only when the compositor socket is present. Do this before
+# starting the detached Wine anchor, not just before launching the program.
+if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    case $WAYLAND_DISPLAY in
+        /*) wayland_socket=$WAYLAND_DISPLAY ;;
+        *)
+            wayland_socket=""
+            if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+                wayland_socket=${XDG_RUNTIME_DIR}/${WAYLAND_DISPLAY}
+            fi
+            ;;
+    esac
+
+    if [ -n "$wayland_socket" ] && [ -S "$wayland_socket" ]; then
+        unset DISPLAY
+        printf '%s\n' "bridge-win32: using Wine Wayland display: $wayland_socket" >&2
+    else
+        if [ -n "$wayland_socket" ]; then
+            wayland_problem="Wayland socket unavailable: $wayland_socket"
+        else
+            wayland_problem="WAYLAND_DISPLAY requires XDG_RUNTIME_DIR for a relative socket name"
+        fi
+        if [ -n "${DISPLAY:-}" ]; then
+            printf '%s\n' "bridge-win32: $wayland_problem; retaining DISPLAY for Wine X11" >&2
+        else
+            fail "$wayland_problem; DISPLAY is also unset"
+        fi
+    fi
+fi
+
 # Wine's long-lived background processes can inherit a caller's captured pipes
 # from the first Wine client. Keep a detached client alive so CTest can observe
 # EOF as soon as the target process exits.

@@ -164,6 +164,37 @@ _bridge_add_win32_runner_test(output output)
 _bridge_add_win32_runner_test(exit-status exit)
 _bridge_add_win32_runner_test(anchor-reuse anchor)
 
+# The Wayland selection tests use a real Unix-domain socket inode. Build the
+# fixture in the native Linux graph, never from inside CTest.
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
+    add_executable(bridge_win32_wayland_socket_fixture win32-wayland-socket.cpp)
+    target_compile_features(bridge_win32_wayland_socket_fixture PRIVATE cxx_std_26)
+
+    function(_bridge_add_win32_wayland_runner_test NAME MODE)
+        add_test(
+            NAME "bridge.runner.win32.${NAME}"
+            COMMAND
+                "${CMAKE_COMMAND}"
+                "-DBRIDGE_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-win32.sh"
+                "-DBRIDGE_RUNNER_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/runner-${NAME}"
+                "-DBRIDGE_RUNNER_TEST_MODE=${MODE}"
+                "-DBRIDGE_RUNNER_TEST_SOCKET_FIXTURE=$<TARGET_FILE:bridge_win32_wayland_socket_fixture>"
+                -P "${PROJECT_SOURCE_DIR}/runner/test.cmake"
+        )
+        set_tests_properties(
+            "bridge.runner.win32.${NAME}"
+            PROPERTIES LABELS "runner;win32;wayland"
+        )
+    endfunction()
+
+    _bridge_add_win32_wayland_runner_test(wayland wayland)
+    _bridge_add_win32_wayland_runner_test(wayland-absolute wayland-absolute)
+    _bridge_add_win32_wayland_runner_test(wayland-native-only wayland-native-only)
+    _bridge_add_win32_wayland_runner_test(wayland-unavailable wayland-unavailable)
+    _bridge_add_win32_wayland_runner_test(wayland-missing-runtime wayland-missing-runtime)
+    _bridge_add_win32_wayland_runner_test(wayland-unavailable-no-x11 wayland-unavailable-no-x11)
+endif()
+
 _bridge_add_android_runner_test(output output)
 _bridge_add_android_runner_test(arguments arguments)
 _bridge_add_android_runner_test(exit-status exit)
