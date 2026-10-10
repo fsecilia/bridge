@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Frank Secilia
+
+foreach(_required IN ITEMS BRIDGE_RUNTIME_DESTINATION BRIDGE_RUNTIME_DEPENDENCY)
+    if(NOT DEFINED ${_required} OR "${${_required}}" STREQUAL "")
+        message(FATAL_ERROR "${_required} is required")
+    endif()
+endforeach()
+
+get_filename_component(_dependency_name "${BRIDGE_RUNTIME_DEPENDENCY}" NAME)
+set(_source "${BRIDGE_RUNTIME_DEPENDENCY}")
+set(_destination "${BRIDGE_RUNTIME_DESTINATION}/${_dependency_name}")
+if(NOT EXISTS "${_destination}")
+    message(FATAL_ERROR "CMake-managed runtime DLL was not staged: ${_destination}")
+endif()
+file(SHA256 "${_source}" _source_hash)
+file(SHA256 "${_destination}" _destination_hash)
+if(NOT _source_hash STREQUAL _destination_hash)
+    message(FATAL_ERROR "Staged DLL differs from the built dependency: ${_destination}")
+endif()
+
+foreach(_dll IN LISTS BRIDGE_RUNTIME_COMPILER_DLLS)
+    set(_source "${BRIDGE_RUNTIME_COMPILER_DIR}/${_dll}")
+    set(_destination "${BRIDGE_RUNTIME_DESTINATION}/${_dll}")
+    if(NOT EXISTS "${_destination}")
+        message(FATAL_ERROR "Compiler runtime DLL was not staged: ${_destination}")
+    endif()
+    file(SHA256 "${_source}" _source_hash)
+    file(SHA256 "${_destination}" _destination_hash)
+    if(NOT _source_hash STREQUAL _destination_hash)
+        message(FATAL_ERROR "Staged compiler DLL differs from its source: ${_destination}")
+    endif()
+endforeach()

@@ -158,6 +158,10 @@ endfunction()
 
 enable_language(CXX)
 
+if(WIN32)
+    add_subdirectory(win32-runtime)
+endif()
+
 add_subdirectory(canon)
 
 _bridge_add_win32_runner_test(output output)

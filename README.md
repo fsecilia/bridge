@@ -35,6 +35,22 @@ The target is intended for IDE and developer workflows, not for CTest. CMake
 Tools does not treat CMake custom build targets as debugger launch targets;
 IDEs can invoke the build target through their task integration.
 
+Windows executables also need their DLL dependencies in the build tree. Bridge
+provides a separate staging API that copies CMake-managed runtime DLLs and,
+for recognized llvm-mingw C++ compilers, `libc++.dll` and `libunwind.dll` next
+to the executable after it links:
+
+```cmake
+include(external/bridge/cmake/BridgeWin32Runtime.cmake)
+bridge_stage_win32_runtime(TARGET game_exe)
+```
+
+Call this from the CMake directory that defines `game_exe`, after creating the
+executable. The helper requires a Windows target and does not require Wine.
+For llvm-mingw it fails configuration if a required compiler DLL is missing.
+It covers build-tree execution, not a release package or arbitrary DLLs loaded
+at runtime outside the CMake dependency graph.
+
 If LLVM-MinGW is installed in a nonstandard location, set the root explicitly when configuring:
 
 ```bash
