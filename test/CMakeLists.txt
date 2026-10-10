@@ -326,3 +326,15 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI MATCHES "^(x86_64|arm64-v8a)$")
         message(STATUS "Bridge Android graphics integration test: disabled")
     endif()
 endif()
+
+# Host-only icon validation and packaging checks do not need platform SDKs.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    add_test(
+        NAME bridge.icons.packaging
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/icons/test_icons.py"
+    )
+    set_tests_properties(bridge.icons.packaging PROPERTIES LABELS "icons;packaging")
+else()
+    message(WARNING "Bridge icon packaging tests unavailable: host Python 3 was not found")
+endif()

@@ -12,6 +12,7 @@
         android:extractNativeLibs="true"
         android:hardwareAccelerated="true"
         android:label="@BRIDGE_ANDROID_APPLICATION_NAME@"
+        @BRIDGE_ANDROID_ICON_ATTRIBUTE@
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
         <activity
             android:name="org.libsdl.app.SDLActivity"

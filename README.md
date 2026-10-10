@@ -115,3 +115,68 @@ cmake --build --preset android-arm64-debug --target game_run
 ```
 
 The run target is developer tooling, not a test. It may build its APK dependency before installing it. CTest continues to execute only artifacts that the normal build graph has already produced.
+
+### Application icons and Linux desktop integration
+
+Bridge accepts consumer-rendered PNGs. It does not render or resample icon
+artwork. An icon directory contains the complete icons `icon-<size>.png` at
+16, 24, 32, 48, 64, 72, 96, 128, 144, 192, 256, and 512 pixels, plus
+`foreground-<size>.png` and `monochrome-<size>.png` at 108, 162, 216, 324,
+and 432 pixels. Every file must be a square, non-interlaced, 8-bit RGB or
+RGBA PNG with the specified dimensions. Bridge validates all 22 files at configuration time and revalidates when
+generating Windows or Android resources. These packaging helpers require a
+host Python 3 interpreter only when icon support is requested.
+
+For Android, add the following arguments to `bridge_add_sdl_android_application`:
+
+```cmake
+ICON_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/icons"
+ADAPTIVE_ICON_BACKGROUND_COLOR "#070508"
+```
+
+Bridge places the complete icons in density-specific launcher resources,
+creates the adaptive foreground and monochrome layers, supplies the solid
+background color, and compiles the resources with AAPT2. The manifest points
+to `@mipmap/ic_launcher`. Existing consumers can omit both icon arguments;
+that preserves their previous behavior without an application icon. Supplying
+only one of these two arguments is an error.
+
+For a Windows executable, use:
+
+```cmake
+include(external/bridge/cmake/BridgeApplicationIcons.cmake)
+bridge_add_win32_application_icon(
+    TARGET game_exe
+    ICON_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/icons"
+)
+```
+
+Bridge assembles the provided PNGs into a multi-resolution ICO and compiles a
+Windows icon resource into the executable. The consumer retains ownership of
+the executable target. The Bridge Win32 toolchain provides a resource compiler.
+
+For Linux desktop installation, use:
+
+```cmake
+include(external/bridge/cmake/BridgeApplicationIcons.cmake)
+bridge_install_linux_desktop_application(
+    TARGET game_exe
+    APPLICATION_ID com.example.game
+    APPLICATION_NAME "Example Game"
+    CATEGORIES Game
+    ASSET_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/runtime"
+    RUNTIME_TARGETS game_runtime SDL3::SDL3
+    ICON_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/icons"
+)
+```
+
+This installs the executable, its explicit shared runtime targets, the
+optional runtime assets beside the executable, `com.example.game.desktop`
+under `share/applications`, and the desktop icons under `share/icons/hicolor`.
+The executable and its packaged shared libraries receive install RPATHs
+relative to the installation prefix. System libraries remain provided by the
+host system; this is not a fully self-contained application bundle.
+`CATEGORIES`, `ASSET_DIRECTORY`, and `RUNTIME_TARGETS` are optional. The application should use the same identifier
+for its window system metadata so Wayland can associate its window with the
+installed desktop entry. `SDL_SetWindowIcon()` remains the consumer's
+responsibility and is independent of these install resources.

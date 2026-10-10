@@ -4,6 +4,7 @@
 include_guard(GLOBAL)
 
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeAndroidEnvironment.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/BridgeApplicationIcons.cmake")
 
 function(
     _bridge_find_android_packaging_environment
@@ -180,6 +181,8 @@ function(bridge_add_sdl_android_application)
         VERSION_CODE
         VERSION_NAME
         ASSET_DIRECTORY
+        ICON_DIRECTORY
+        ADAPTIVE_ICON_BACKGROUND_COLOR
     )
     set(multi_value_args RUNTIME_TARGETS)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "${options}" "${one_value_args}" "${multi_value_args}")
@@ -303,6 +306,44 @@ function(bridge_add_sdl_android_application)
         endforeach()
     endif()
 
+    set(_icon_dependencies "")
+    set(_resource_flats "")
+    set(_resource_setup_commands "")
+    set(BRIDGE_ANDROID_ICON_ATTRIBUTE "")
+    if(ARG_ICON_DIRECTORY)
+        if(NOT ARG_ADAPTIVE_ICON_BACKGROUND_COLOR)
+            message(
+                FATAL_ERROR
+                "bridge_add_sdl_android_application(): ADAPTIVE_ICON_BACKGROUND_COLOR is required with ICON_DIRECTORY"
+            )
+        endif()
+        if(NOT ARG_ADAPTIVE_ICON_BACKGROUND_COLOR MATCHES "^#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]$")
+            message(
+                FATAL_ERROR
+                "bridge_add_sdl_android_application(): ADAPTIVE_ICON_BACKGROUND_COLOR must be #RRGGBB"
+            )
+        endif()
+        _bridge_validate_icon_directory("${ARG_ICON_DIRECTORY}" _icon_directory _icon_python _icon_dependencies)
+        set(BRIDGE_ANDROID_ICON_ATTRIBUTE "android:icon=\"@mipmap/ic_launcher\"")
+        set(_icon_script "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/bridge_icons.py")
+        foreach(_density IN ITEMS mdpi hdpi xhdpi xxhdpi xxxhdpi)
+            foreach(_name IN ITEMS ic_launcher ic_launcher_foreground ic_launcher_monochrome)
+                list(APPEND _resource_flats
+                    "${CMAKE_CURRENT_BINARY_DIR}/${ARG_TARGET}-package/compiled/mipmap-${_density}_${_name}.png.flat"
+                )
+            endforeach()
+        endforeach()
+        list(APPEND _resource_flats
+            "${CMAKE_CURRENT_BINARY_DIR}/${ARG_TARGET}-package/compiled/values_colors.arsc.flat"
+            "${CMAKE_CURRENT_BINARY_DIR}/${ARG_TARGET}-package/compiled/mipmap-anydpi-v26_ic_launcher.xml.flat"
+        )
+    elseif(ARG_ADAPTIVE_ICON_BACKGROUND_COLOR)
+        message(
+            FATAL_ERROR
+            "bridge_add_sdl_android_application(): ADAPTIVE_ICON_BACKGROUND_COLOR requires ICON_DIRECTORY"
+        )
+    endif()
+
     _bridge_find_android_packaging_environment(
         _packaging_available
         _android_jar
@@ -346,6 +387,23 @@ function(bridge_add_sdl_android_application)
     set(_unaligned_apk "${_package_dir}/unaligned.apk")
     set(_aligned_apk "${_package_dir}/aligned.apk")
     set(_keystore "${_package_dir}/debug.keystore")
+    if(ARG_ICON_DIRECTORY)
+        set(_resource_directory "${_package_dir}/res")
+        set(_resource_compiled_directory "${_package_dir}/compiled")
+        set(_resource_setup_commands
+            COMMAND "${CMAKE_COMMAND}" -E rm -rf "${_resource_compiled_directory}"
+            COMMAND "${_icon_python}" "${_icon_script}"
+                android --source "${_icon_directory}"
+                --output "${_resource_directory}"
+                --background "${ARG_ADAPTIVE_ICON_BACKGROUND_COLOR}"
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${_resource_compiled_directory}"
+            COMMAND "${_aapt2}" compile --dir "${_resource_directory}" -o "${_resource_compiled_directory}"
+        )
+        set(_link_resource_args "")
+        foreach(_flat IN LISTS _resource_flats)
+            list(APPEND _link_resource_args -R "${_flat}")
+        endforeach()
+    endif()
 
     _bridge_android_xml_escape("${ARG_APPLICATION_NAME}" BRIDGE_ANDROID_APPLICATION_NAME)
     _bridge_android_xml_escape("${_version_name}" BRIDGE_ANDROID_VERSION_NAME)
@@ -458,6 +516,7 @@ endfunction()
             --min-api "${_min_api}"
             --output "${_dex_dir}"
             "${_classes_jar}"
+        ${_resource_setup_commands}
         COMMAND
             "${_aapt2}"
             link
@@ -466,6 +525,7 @@ endfunction()
             --manifest "${_manifest}"
             --min-sdk-version "${_min_api}"
             --target-sdk-version "${_target_api}"
+            ${_link_resource_args}
         COMMAND "${CMAKE_COMMAND}" -E copy "${_resource_apk}" "${_unaligned_apk}"
         COMMAND
             "${CMAKE_COMMAND}"
@@ -493,6 +553,8 @@ endfunction()
             "${_stage_script}"
             ${_asset_manifest}
             ${_asset_dependencies}
+            ${_icon_dependencies}
+            ${_icon_script}
             ${_sdl_java_sources}
             "${_main_target}"
             "${_sdl_target}"
