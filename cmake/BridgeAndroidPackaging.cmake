@@ -399,7 +399,9 @@ function(bridge_add_sdl_android_application)
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${_resource_compiled_directory}"
             COMMAND "${_aapt2}" compile --dir "${_resource_directory}" -o "${_resource_compiled_directory}"
         )
-        set(_link_resource_args "")
+        # aapt2 -R uses overlay semantics. These are new application resources,
+        # so the linker must allow resource declarations absent from android.jar.
+        set(_link_resource_args --auto-add-overlay)
         foreach(_flat IN LISTS _resource_flats)
             list(APPEND _link_resource_args -R "${_flat}")
         endforeach()
