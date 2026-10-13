@@ -3,16 +3,14 @@
 
 include("${PROJECT_SOURCE_DIR}/cmake/BridgeAndroidPackaging.cmake")
 
-set(BRIDGE_SDL_SOURCE_DIR "" CACHE PATH "SDL source tree used by Bridge Android graphics integration tests")
-if (NOT "${BRIDGE_SDL_SOURCE_DIR}" STREQUAL "")
-    if (NOT EXISTS "${BRIDGE_SDL_SOURCE_DIR}/CMakeLists.txt")
-        message(FATAL_ERROR "BRIDGE_SDL_SOURCE_DIR is not an SDL source tree: ${BRIDGE_SDL_SOURCE_DIR}")
-    endif()
-    set(_bridge_sdl_source_dir "${BRIDGE_SDL_SOURCE_DIR}")
-elseif (EXISTS "${PROJECT_SOURCE_DIR}/external/sdl3/CMakeLists.txt")
-    set(_bridge_sdl_source_dir "${PROJECT_SOURCE_DIR}/external/sdl3")
-else()
-    set(_bridge_sdl_source_dir "")
+# Canon resolves Bridge's optional SDL test dependency from external/sdl3.
+# The Android APK also requires SDL Java sources, so the test needs the subtree.
+set(_bridge_sdl_source_dir "${PROJECT_SOURCE_DIR}/external/sdl3")
+if(DEFINED BRIDGE_SDL_SOURCE_DIR AND NOT "${BRIDGE_SDL_SOURCE_DIR}" STREQUAL "")
+    message(FATAL_ERROR
+        "BRIDGE_SDL_SOURCE_DIR is no longer supported; initialize the SDL "
+        "submodule at ${_bridge_sdl_source_dir}"
+    )
 endif()
 
 function(_bridge_add_android_graphics_test NAME)
@@ -275,7 +273,7 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI MATCHES "^(x86_64|arm64-v8a)$")
         _bridge_android_packaging_reason
     )
 
-    if(_bridge_android_packaging_available AND NOT "${_bridge_sdl_source_dir}" STREQUAL "")
+    if(_bridge_android_packaging_available AND EXISTS "${_bridge_sdl_source_dir}/CMakeLists.txt")
         message(STATUS "Bridge Android graphics APK: enabled")
         set(BRIDGE_ANDROID_GRAPHICS_SDL_SOURCE_DIR "${_bridge_sdl_source_dir}")
         add_subdirectory(android-graphics)
@@ -317,11 +315,8 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI MATCHES "^(x86_64|arm64-v8a)$")
         if(NOT _bridge_android_packaging_available)
             message(STATUS "  ${_bridge_android_packaging_reason}")
         endif()
-        if("${_bridge_sdl_source_dir}" STREQUAL "")
-            message(
-                STATUS
-                "  SDL source tree not found; set BRIDGE_SDL_SOURCE_DIR or place SDL under external/sdl3"
-            )
+        if(NOT EXISTS "${_bridge_sdl_source_dir}/CMakeLists.txt")
+            message(STATUS "  SDL source tree not found at ${_bridge_sdl_source_dir}; initialize its submodule")
         endif()
         message(STATUS "Bridge Android graphics integration test: disabled")
     endif()

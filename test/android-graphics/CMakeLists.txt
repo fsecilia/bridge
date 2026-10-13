@@ -28,18 +28,20 @@ set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
 set(SDL_TESTS OFF CACHE BOOL "" FORCE)
 set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
-if(DEFINED CMAKE_MESSAGE_LOG_LEVEL)
-    add_subdirectory("${BRIDGE_ANDROID_GRAPHICS_SDL_SOURCE_DIR}" SDL EXCLUDE_FROM_ALL)
-else()
-    block()
+# Use Canon's normal dependency resolver. The SDL subtree was checked above
+# because this APK needs the Android Java glue in addition to the SDL target.
+block()
+    if(NOT DEFINED CMAKE_MESSAGE_LOG_LEVEL)
         set(CMAKE_MESSAGE_LOG_LEVEL WARNING)
-        add_subdirectory("${BRIDGE_ANDROID_GRAPHICS_SDL_SOURCE_DIR}" SDL EXCLUDE_FROM_ALL)
-    endblock()
-endif()
-
-if(NOT TARGET SDL3-shared)
-    message(FATAL_ERROR "SDL source tree did not provide the required SDL3-shared target")
-endif()
+    endif()
+    canon_resolve_dependency(
+        sdl3
+        PACKAGE SDL3
+        VERSION "3.2...<4.0"
+        CONFIG
+        TARGETS SDL3::SDL3-shared
+    )
+endblock()
 
 add_library(bridge_android_graphics_runtime SHARED runtime.c)
 target_compile_features(bridge_android_graphics_runtime PRIVATE c_std_17)
