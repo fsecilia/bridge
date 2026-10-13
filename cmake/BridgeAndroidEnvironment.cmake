@@ -4,54 +4,17 @@
 include_guard(GLOBAL)
 
 function(_bridge_find_android_sdk_root OUT_ROOT OUT_REASON)
-    if (DEFINED BRIDGE_ANDROID_SDK_ROOT AND NOT "${BRIDGE_ANDROID_SDK_ROOT}" STREQUAL "")
-        set(_sdk_root "${BRIDGE_ANDROID_SDK_ROOT}")
-        cmake_path(NORMAL_PATH _sdk_root OUTPUT_VARIABLE _sdk_root)
-        if (NOT IS_DIRECTORY "${_sdk_root}")
-            set(${OUT_ROOT} "" PARENT_SCOPE)
-            set(${OUT_REASON} "BRIDGE_ANDROID_SDK_ROOT is not a directory: ${_sdk_root}" PARENT_SCOPE)
-            return()
-        endif()
+    foreach(_variable IN ITEMS ANDROID_HOME ANDROID_SDK_ROOT)
+        if (DEFINED ENV{${_variable}} AND NOT "$ENV{${_variable}}" STREQUAL "")
+            set(_sdk_root "$ENV{${_variable}}")
+            cmake_path(NORMAL_PATH _sdk_root OUTPUT_VARIABLE _sdk_root)
+            if (NOT IS_DIRECTORY "${_sdk_root}")
+                set(${OUT_ROOT} "" PARENT_SCOPE)
+                set(${OUT_REASON} "${_variable} is not a directory: ${_sdk_root}" PARENT_SCOPE)
+                return()
+            endif()
 
-        set(${OUT_ROOT} "${_sdk_root}" PARENT_SCOPE)
-        set(${OUT_REASON} "" PARENT_SCOPE)
-        return()
-    endif()
-
-    if (DEFINED ENV{BRIDGE_ANDROID_SDK_ROOT} AND NOT "$ENV{BRIDGE_ANDROID_SDK_ROOT}" STREQUAL "")
-        set(_sdk_root "$ENV{BRIDGE_ANDROID_SDK_ROOT}")
-        cmake_path(NORMAL_PATH _sdk_root OUTPUT_VARIABLE _sdk_root)
-        if (NOT IS_DIRECTORY "${_sdk_root}")
-            set(${OUT_ROOT} "" PARENT_SCOPE)
-            set(${OUT_REASON} "BRIDGE_ANDROID_SDK_ROOT environment variable is not a directory: ${_sdk_root}" PARENT_SCOPE)
-            return()
-        endif()
-
-        set(${OUT_ROOT} "${_sdk_root}" PARENT_SCOPE)
-        set(${OUT_REASON} "" PARENT_SCOPE)
-        return()
-    endif()
-
-    set(_candidates)
-    if (DEFINED ENV{ANDROID_HOME} AND NOT "$ENV{ANDROID_HOME}" STREQUAL "")
-        list(APPEND _candidates "$ENV{ANDROID_HOME}")
-    endif()
-    if (DEFINED ENV{ANDROID_SDK_ROOT} AND NOT "$ENV{ANDROID_SDK_ROOT}" STREQUAL "")
-        list(APPEND _candidates "$ENV{ANDROID_SDK_ROOT}")
-    endif()
-    if (DEFINED ENV{HOME} AND NOT "$ENV{HOME}" STREQUAL "")
-        list(APPEND _candidates
-            "$ENV{HOME}/Android/Sdk"
-            "$ENV{HOME}/Library/Android/sdk"
-        )
-    endif()
-    list(APPEND _candidates "/opt/android-sdk")
-    list(REMOVE_DUPLICATES _candidates)
-
-    foreach(_candidate IN LISTS _candidates)
-        if (IS_DIRECTORY "${_candidate}")
-            cmake_path(NORMAL_PATH _candidate OUTPUT_VARIABLE _candidate)
-            set(${OUT_ROOT} "${_candidate}" PARENT_SCOPE)
+            set(${OUT_ROOT} "${_sdk_root}" PARENT_SCOPE)
             set(${OUT_REASON} "" PARENT_SCOPE)
             return()
         endif()
@@ -88,7 +51,7 @@ function(_bridge_find_android_environment OUT_AVAILABLE OUT_SDK_ROOT OUT_ADB OUT
         set(${OUT_SDK_ROOT} "${_sdk_root}" PARENT_SCOPE)
         set(${OUT_ADB} "" PARENT_SCOPE)
         set(${OUT_REASON}
-            "adb was not found; install Android SDK platform-tools or set BRIDGE_ANDROID_SDK_ROOT"
+            "adb was not found; set ANDROID_HOME or ANDROID_SDK_ROOT to an SDK with platform-tools, or put adb on PATH"
             PARENT_SCOPE
         )
         return()

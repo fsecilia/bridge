@@ -10,7 +10,7 @@ bridge_android_fail()
 bridge_android_validate_adb()
 {
     if [ "$bridge_android_adb" = --adb-unavailable ]; then
-        bridge_android_fail "adb is unavailable; install Android SDK platform-tools or set BRIDGE_ANDROID_SDK_ROOT"
+        bridge_android_fail "adb is unavailable; set ANDROID_HOME or ANDROID_SDK_ROOT to an SDK with platform-tools, or put adb on PATH"
     fi
     if [ ! -x "$bridge_android_adb" ]; then
         bridge_android_fail "adb executable is not executable: $bridge_android_adb"

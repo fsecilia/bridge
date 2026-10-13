@@ -45,7 +45,7 @@ function(
     endif()
     if ("${_sdk_root}" STREQUAL "")
         set(${OUT_REASON}
-            "Android SDK was not found; install an SDK or set BRIDGE_ANDROID_SDK_ROOT"
+            "Android SDK was not found; set ANDROID_HOME or ANDROID_SDK_ROOT"
             PARENT_SCOPE
         )
         return()
