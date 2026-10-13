@@ -71,7 +71,7 @@ function(_bridge_find_android_environment OUT_AVAILABLE OUT_SDK_ROOT OUT_ADB OUT
         return()
     endif()
 
-    set(_adb "")
+    unset(_adb)
     if (NOT "${_sdk_root}" STREQUAL "" AND EXISTS "${_sdk_root}/platform-tools/adb")
         set(_adb "${_sdk_root}/platform-tools/adb")
     else()
