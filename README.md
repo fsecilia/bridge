@@ -71,6 +71,20 @@ The Android runner selects exactly one online device that supports the target AB
 
 This first headless runner does not claim to mirror the host process environment or host working-directory contents onto Android. Tests that need environment variables or runtime files need an explicit deployment contract rather than an implicit host-filesystem assumption.
 
+Register native executable tests on Linux, Windows/Wine, and Android through one Bridge API. `ASSET_DIRECTORY` becomes the test working directory on Linux and Windows; Android copies that directory to the device and runs from the deployed copy. `RUNTIME_TARGETS` identifies additional shared libraries to deploy explicitly. On Windows, Bridge also stages CMake-discovered DLLs and supported LLVM-MinGW compiler runtimes alongside the executable after it builds. On Android, Bridge pushes the explicit libraries alongside the executable and sets `LD_LIBRARY_PATH`. No build or configuration happens during CTest.
+
+```cmake
+include(external/bridge/cmake/BridgeNativeTest.cmake)
+bridge_add_native_test(
+    NAME game.unit
+    TARGET GameTests
+    RUNTIME_TARGETS SDL3::SDL3-shared
+    ASSET_DIRECTORY "${CMAKE_BINARY_DIR}/assets"
+)
+```
+
+Android's native test runner does not provide an Activity or Java-side SDL initialization. Tests requiring that lifecycle need an APK-based harness. A missing asset tree, runtime library, or failed deployment is an error rather than a skipped test.
+
 ### SDL3 APK packaging
 
 Bridge can package an existing SDL3 Android shared-library target as a development APK. The consuming project still owns its targets. On Android, SDL requires the application entry point to live in a shared library that is loaded as `libmain.so`; Bridge does not rewrite an executable target into that form.

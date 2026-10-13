@@ -161,6 +161,7 @@ if(WIN32)
 endif()
 
 add_subdirectory(canon)
+add_subdirectory(native-test)
 
 _bridge_add_win32_runner_test(output output)
 _bridge_add_win32_runner_test(exit-status exit)
@@ -201,6 +202,7 @@ _bridge_add_android_runner_test(output output)
 _bridge_add_android_runner_test(arguments arguments)
 _bridge_add_android_runner_test(exit-status exit)
 _bridge_add_android_runner_test(device-selection selection)
+_bridge_add_android_runner_test(staging staging)
 
 _bridge_add_android_app_runner_test(run run)
 _bridge_add_android_app_runner_test(install-failure install-failure)
