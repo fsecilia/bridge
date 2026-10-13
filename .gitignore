@@ -10,6 +10,7 @@ CMakeLists.txt.user
 # Local build trees.
 /build/
 /out/
+__pycache__
 
 # Local CMake configuration.
 /CMakeUserPresets.json
