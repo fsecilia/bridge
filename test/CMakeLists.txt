@@ -72,6 +72,18 @@ function(_bridge_add_android_app_runner_test NAME MODE)
     )
 endfunction()
 
+function(_bridge_add_android_activity_runner_test NAME MODE)
+    add_test(
+        NAME "bridge.runner.android-activity.${NAME}"
+        COMMAND "${CMAKE_COMMAND}"
+            "-DBRIDGE_ANDROID_ACTIVITY_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-android-activity-test.sh"
+            "-DBRIDGE_ACTIVITY_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/android-activity-${NAME}"
+            "-DBRIDGE_ACTIVITY_TEST_MODE=${MODE}"
+            -P "${PROJECT_SOURCE_DIR}/runner/android-activity-test.cmake"
+    )
+    set_tests_properties("bridge.runner.android-activity.${NAME}" PROPERTIES LABELS "runner;android")
+endfunction()
+
 function(_bridge_add_win32_runner_test NAME MODE)
     add_test(
         NAME "bridge.runner.win32.${NAME}"
@@ -203,6 +215,10 @@ _bridge_add_android_runner_test(arguments arguments)
 _bridge_add_android_runner_test(exit-status exit)
 _bridge_add_android_runner_test(device-selection selection)
 _bridge_add_android_runner_test(staging staging)
+
+foreach(_mode IN ITEMS pass fail no-start duplicate timeout install-failure)
+    _bridge_add_android_activity_runner_test("${_mode}" "${_mode}")
+endforeach()
 
 _bridge_add_android_app_runner_test(run run)
 _bridge_add_android_app_runner_test(install-failure install-failure)
