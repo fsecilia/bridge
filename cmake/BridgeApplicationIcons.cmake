@@ -29,13 +29,25 @@ function(_bridge_validate_icon_directory DIRECTORY OUT_DIRECTORY OUT_PYTHON OUT_
 endfunction()
 
 # Embed a multi-resolution .ico in an existing consumer-owned Windows executable.
-# CMake must enable languages in the caller's directory scope, not from a
-# function's local variable scope. The public macro keeps this transparent.
+# CMake enables RC itself for any Windows project that enables C or C++. For
+# other projects, the public macro enables RC when it expands at directory
+# scope. Expanded inside a function, enabling RC would not reach the directory
+# that builds the executable, so that case is an error instead.
 macro(bridge_add_win32_application_icon)
     if(NOT WIN32)
         message(FATAL_ERROR "bridge_add_win32_application_icon() requires Windows")
     endif()
-    enable_language(RC)
+    if(NOT CMAKE_RC_COMPILER_LOADED)
+        if(CMAKE_CURRENT_FUNCTION)
+            message(
+                FATAL_ERROR
+                "bridge_add_win32_application_icon(): RC is not enabled, and it cannot be enabled from inside "
+                "${CMAKE_CURRENT_FUNCTION}(). Call enable_language(RC) in the directory that defines the "
+                "executable, or in a parent directory, before calling ${CMAKE_CURRENT_FUNCTION}()."
+            )
+        endif()
+        enable_language(RC)
+    endif()
     _bridge_add_win32_application_icon(${ARGN})
 endmacro()
 

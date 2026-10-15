@@ -351,3 +351,69 @@ if(Python3_Interpreter_FOUND)
 else()
     message(WARNING "Bridge icon packaging tests unavailable: host Python 3 was not found")
 endif()
+
+# Platform-neutral applications. The desktop fixture builds and runs real
+# programs; Android applications are APKs, which the graphics test covers.
+if(NOT ANDROID)
+    if(Python3_Interpreter_FOUND)
+        add_subdirectory(application)
+    else()
+        message(WARNING "Bridge application tests unavailable: host Python 3 was not found for icon fixtures")
+    endif()
+endif()
+
+# Configures a fixture that must fail. Argument checks do not depend on the
+# target, so fixtures configure for the host by default and need no compiler.
+# TARGET_PLATFORM fixtures configure with this build's toolchain and compiler,
+# for checks that only exist on the target platform.
+function(_bridge_add_configure_failure_test NAME EXPECTED_ERROR)
+    cmake_parse_arguments(PARSE_ARGV 2 ARG "TARGET_PLATFORM" "" "")
+    set(_platform_arguments "")
+    if(ARG_TARGET_PLATFORM)
+        set(_platform_arguments
+            "-DBRIDGE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}"
+            "-DBRIDGE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+        )
+    endif()
+    add_test(
+        NAME "bridge.application.errors.${NAME}"
+        COMMAND
+            "${CMAKE_COMMAND}"
+            "-DBRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "-DBRIDGE_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/application/errors/${NAME}"
+            "-DBRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/application-errors/${NAME}"
+            "-DBRIDGE_GENERATOR=${CMAKE_GENERATOR}"
+            "-DBRIDGE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
+            ${_platform_arguments}
+            "-DBRIDGE_EXPECTED_ERROR=${EXPECTED_ERROR}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/application/configure-failure.cmake"
+    )
+    set_tests_properties("bridge.application.errors.${NAME}" PROPERTIES LABELS "application;configure")
+endfunction()
+
+_bridge_add_configure_failure_test(
+    icon-color
+    "bridge_add_sdl_application(): ICON_DIRECTORY requires ADAPTIVE_ICON_BACKGROUND_COLOR"
+)
+_bridge_add_configure_failure_test(
+    main-static
+    "MAIN_TARGET 'game_main' must be a shared library on every platform"
+)
+_bridge_add_configure_failure_test(
+    missing-canon
+    "bridge_add_sdl_application(): load Canon first"
+)
+if(NOT ANDROID)
+    _bridge_add_configure_failure_test(
+        shared-directory
+        "'second' shares output directory"
+        TARGET_PLATFORM
+    )
+endif()
+if(WIN32)
+    _bridge_add_configure_failure_test(
+        win32-icon-in-function
+        "RC is not enabled, and it cannot be enabled from inside add_icon()"
+        TARGET_PLATFORM
+    )
+endif()

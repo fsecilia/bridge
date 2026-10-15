@@ -2,6 +2,84 @@
 
 Bridge makes supported foreign targets behave as locally as practical from a Linux development host.
 
+## Applications on every platform
+
+`BridgeApplication.cmake` turns a shared library with an SDL entry point into a
+runnable application on Linux, Windows, and Android with one call. It chooses
+the platform-specific functions described in the sections below, so the
+consumer does not branch on the platform.
+
+```cmake
+include(external/bridge/cmake/BridgeApplication.cmake)
+
+add_library(game_main SHARED main.cpp)
+target_link_libraries(game_main PRIVATE SDL3::SDL3)
+
+bridge_add_sdl_application(
+    ALL
+    TARGET game
+    RUN_TARGET game_run
+    MAIN_TARGET game_main
+    LAUNCHER_SOURCES launcher.cpp
+    SDL_TARGET SDL3::SDL3
+    SDL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/external/sdl3"
+    APPLICATION_ID com.example.game
+    APPLICATION_NAME "Example Game"
+    ASSET_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/runtime"
+    ICON_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/icons"
+    ADAPTIVE_ICON_BACKGROUND_COLOR "#070508"
+    DESKTOP_CATEGORIES Game
+)
+```
+
+On Android, `game` is the APK packaging target and `game_run` installs and
+launches it. `ALL`, `OUTPUT`, `VERSION_NAME`, `VERSION_CODE`, and `MIN_API`
+apply only to the APK.
+
+Elsewhere, `game` is an executable built from `LAUNCHER_SOURCES`, a `main()`
+that forwards to the library, linked with `MAIN_TARGET` and `SDL_TARGET`. It
+receives Canon's build policy, so Canon must be loaded first. `game_run` runs it
+under Bridge's Wine runner on Windows and directly on the host otherwise.
+`MAIN_TARGET` must be a shared library on every platform, because Android loads
+it as `libmain.so`.
+
+`ICON_DIRECTORY` adds the Android launcher icons, the embedded Windows icon, or
+the Linux desktop entry. Its companion arguments are validated on every
+platform, so a project that configures on Linux does not fail later on Android.
+
+### Running desktop executables from the build tree
+
+```cmake
+bridge_stage_runtime(
+    TARGET game
+    ASSET_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/runtime"
+    ICON_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/icons"
+)
+```
+
+`bridge_stage_runtime()` makes an executable runnable from the build tree. On
+Windows it stages DLLs as `bridge_stage_win32_runtime()` does. It stages the
+asset directory's contents beside the executable and the icon directory as
+`icons/` beside it, the same layout `bridge_install_linux_desktop_application()`
+installs. `bridge_add_sdl_application()` calls it for desktop executables, and
+other tools can call it directly; with no directories it stages only what the
+platform needs, which on Linux is nothing.
+
+Executables that share an output directory share one staging target, named
+`<first executable>_runtime_assets`, so the build never copies into one
+directory concurrently. Every executable in the directory depends on it, and it
+stages everything any of them requested, so a tool that asks only for assets
+still finds the icons another program staged. Each place in the directory (the
+directory itself, and `icons/`) is filled from one source directory; asking for
+a different source for the same place is a configuration error.
+
+### Run targets
+
+`bridge_add_run_target(TARGET game_run APPLICATION_TARGET game)` adds a target
+that builds an application and starts it: an APK through Bridge's Android
+application runner, a Windows executable through its Wine runner, or a host
+executable directly. Cross-compiling for any other system is an error.
+
 ## Win32 prototype
 
 Bridge's Win32 profile cross-compiles with LLVM-MinGW and executes target programs through Wine. A small POSIX `sh` runner keeps Wine's background processes detached from captured test output so CTest does not wait for Wine's idle shutdown after each executable. The toolchain first honors `BRIDGE_LLVM_MINGW_ROOT`, then the environment variable of the same name, then searches a target-prefixed LLVM-MinGW compiler already on `PATH` and `/opt/llvm-mingw`. Bridge also adds LLVM-MinGW's target runtime DLL directory to Wine's executable search path.
@@ -167,7 +245,10 @@ bridge_add_win32_application_icon(
 
 Bridge assembles the provided PNGs into a multi-resolution ICO and compiles a
 Windows icon resource into the executable. The consumer retains ownership of
-the executable target. The Bridge Win32 toolchain provides a resource compiler.
+the executable target. The Bridge Win32 toolchain provides a resource compiler,
+and CMake enables RC for every Windows project that enables C or C++. In a
+project without them, this function enables RC when called at directory scope;
+called from inside a function it cannot, so it reports an error instead.
 
 For Linux desktop installation, use:
 
