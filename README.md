@@ -61,7 +61,9 @@ bridge_stage_runtime(
 Windows it stages DLLs as `bridge_stage_win32_runtime()` does. It stages the
 asset directory's contents beside the executable and the icon directory as
 `icons/` beside it, the same layout `bridge_install_linux_desktop_application()`
-installs. `bridge_add_sdl_application()` calls it for desktop executables, and
+installs. Unchanged files are not rewritten, and a file removed from a source
+directory is removed from the staged copy on the next build. Other files beside
+the executable, including the executable itself, are never touched. `bridge_add_sdl_application()` calls it for desktop executables, and
 other tools can call it directly; with no directories it stages only what the
 platform needs, which on Linux is nothing.
 

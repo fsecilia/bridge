@@ -46,7 +46,8 @@ endfunction()
 # Executables that share an output directory share one staging target, named
 # <first target>_runtime_assets, so the build never copies into one directory
 # concurrently. Every executable in the directory depends on it, and it stages
-# everything any of them requested. Each place it fills (the directory itself,
+# everything any of them requested. Files removed from a source directory are
+# removed from the staged copy on the next build; nothing else there is touched. Each place it fills (the directory itself,
 # and icons/) comes from one source directory; requesting a different one for
 # the same place is an error. The output directory is identified by the
 # RUNTIME_OUTPUT_DIRECTORY property, or by the target's binary directory when
@@ -86,8 +87,12 @@ function(bridge_stage_runtime)
         add_custom_target("${_staging_target}" COMMENT "Staging runtime assets beside ${ARG_TARGET}" VERBATIM)
         set_property(GLOBAL PROPERTY "${_target_property}" "${_staging_target}")
         set_property(GLOBAL PROPERTY "_BRIDGE_RUNTIME_STAGING_DESTINATION_${_key}" "$<TARGET_FILE_DIR:${ARG_TARGET}>")
+        set_property(
+            GLOBAL PROPERTY "_BRIDGE_RUNTIME_STAGING_MANIFESTS_${_key}" "${CMAKE_CURRENT_BINARY_DIR}/${_staging_target}"
+        )
     endif()
     get_property(_destination GLOBAL PROPERTY "_BRIDGE_RUNTIME_STAGING_DESTINATION_${_key}")
+    get_property(_manifests GLOBAL PROPERTY "_BRIDGE_RUNTIME_STAGING_MANIFESTS_${_key}")
 
     foreach(_place IN ITEMS ASSET_DIRECTORY ICON_DIRECTORY)
         if(NOT ARG_${_place})
@@ -118,9 +123,16 @@ function(bridge_stage_runtime)
             _bridge_validate_icon_directory("${_source}" _source _python _icon_files)
             set(_place_destination "${_destination}/icons")
         endif()
+        # A manifest per place and configuration lets the copy remove files
+        # that were staged before but have since left the source directory.
         add_custom_command(
             TARGET "${_staging_target}" POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory_if_different "${_source}" "${_place_destination}"
+            COMMAND
+                "${CMAKE_COMMAND}"
+                "-DSOURCE=${_source}"
+                "-DDESTINATION=${_place_destination}"
+                "-DMANIFEST=${_manifests}/${_place}-$<CONFIG>.manifest"
+                -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/bridge_stage_directory.cmake"
             VERBATIM
         )
         set_property(GLOBAL PROPERTY "${_source_property}" "${_source}")

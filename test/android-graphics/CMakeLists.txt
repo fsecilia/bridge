@@ -56,26 +56,28 @@ target_link_libraries(
         GLESv2
 )
 
-include("${PROJECT_SOURCE_DIR}/cmake/BridgeAndroidPackaging.cmake")
+# Package through the platform-neutral API, so the on-device graphics test also
+# covers bridge_add_sdl_application()'s Android path.
+include("${PROJECT_SOURCE_DIR}/cmake/BridgeApplication.cmake")
 set(_bridge_apk "${CMAKE_CURRENT_BINARY_DIR}/bridge-android-graphics.apk")
-bridge_add_sdl_android_application(
+bridge_add_sdl_application(
     ALL
     TARGET bridge_android_graphics_apk
-    APPLICATION_ID com.bonkheavy.bridge.graphics
-    APPLICATION_NAME "Bridge Android Graphics"
+    RUN_TARGET bridge_android_graphics_run
     MAIN_TARGET bridge_android_graphics_main
+    LAUNCHER_SOURCES launcher.c
     SDL_TARGET SDL3::SDL3-shared
     SDL_SOURCE_DIR "${BRIDGE_ANDROID_GRAPHICS_SDL_SOURCE_DIR}"
+    APPLICATION_ID com.bonkheavy.bridge.graphics
+    APPLICATION_NAME "Bridge Android Graphics"
     OUTPUT "${_bridge_apk}"
     MIN_API "${CMAKE_SYSTEM_VERSION}"
     ASSET_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/assets"
     RUNTIME_TARGETS bridge_android_graphics_runtime
 )
-
-include("${PROJECT_SOURCE_DIR}/cmake/BridgeAndroidRun.cmake")
-bridge_add_android_run_target(
-    TARGET bridge_android_graphics_run
-    APPLICATION_TARGET bridge_android_graphics_apk
-)
+get_target_property(_bridge_packaged_apk bridge_android_graphics_apk BRIDGE_ANDROID_APK)
+if(NOT _bridge_packaged_apk STREQUAL _bridge_apk)
+    message(FATAL_ERROR "bridge_add_sdl_application() packaged '${_bridge_packaged_apk}', expected '${_bridge_apk}'")
+endif()
 
 set(BRIDGE_ANDROID_GRAPHICS_APK "${_bridge_apk}" PARENT_SCOPE)

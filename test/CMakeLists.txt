@@ -13,90 +13,79 @@ if(DEFINED BRIDGE_SDL_SOURCE_DIR AND NOT "${BRIDGE_SDL_SOURCE_DIR}" STREQUAL "")
     )
 endif()
 
-function(_bridge_add_android_graphics_test NAME)
-    set(one_value_args APK ANDROID_SERIAL)
-    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "${one_value_args}" "")
+# Registers a test that runs a CMake script on the host. Each DEFINITIONS entry
+# is passed to the script as -D<entry>.
+#
+#   _bridge_add_script_test(<name> SCRIPT <file> LABELS <label>... [TIMEOUT <seconds>]
+#                           [DEFINITIONS <VAR>=<value>...])
+function(_bridge_add_script_test NAME)
+    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "SCRIPT;TIMEOUT" "LABELS;DEFINITIONS")
+    if(ARG_UNPARSED_ARGUMENTS OR NOT ARG_SCRIPT OR NOT ARG_LABELS)
+        message(FATAL_ERROR "_bridge_add_script_test(${NAME}): SCRIPT and LABELS are required")
+    endif()
 
-    foreach(_required IN ITEMS APK ANDROID_SERIAL)
-        if(NOT ARG_${_required})
-            message(FATAL_ERROR "_bridge_add_android_graphics_test(): ${_required} is required")
-        endif()
+    set(_definitions "")
+    foreach(_definition IN LISTS ARG_DEFINITIONS)
+        list(APPEND _definitions "-D${_definition}")
     endforeach()
-
-    add_test(
-        NAME "bridge.integration.graphics.${NAME}"
-        COMMAND
-            "${CMAKE_COMMAND}"
-            "-DBRIDGE_APK=${ARG_APK}"
-            "-DBRIDGE_ADB_EXECUTABLE=${BRIDGE_ADB_EXECUTABLE}"
-            "-DBRIDGE_ANDROID_SERIAL=${ARG_ANDROID_SERIAL}"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/android-graphics/test.cmake"
-    )
-    set_tests_properties(
-        "bridge.integration.graphics.${NAME}"
-        PROPERTIES
-            LABELS "integration;android;graphics"
-            TIMEOUT 120
-    )
+    add_test(NAME "${NAME}" COMMAND "${CMAKE_COMMAND}" ${_definitions} -P "${ARG_SCRIPT}")
+    set_tests_properties("${NAME}" PROPERTIES LABELS "${ARG_LABELS}")
+    if(ARG_TIMEOUT)
+        set_tests_properties("${NAME}" PROPERTIES TIMEOUT "${ARG_TIMEOUT}")
+    endif()
 endfunction()
 
+# Runner tests drive each runner script against fake adb or Wine executables,
+# so they run on any host. Each takes a test name and the mode its script runs.
+
 function(_bridge_add_android_runner_test NAME MODE)
-    add_test(
-        NAME "bridge.runner.android.${NAME}"
-        COMMAND
-            "${CMAKE_COMMAND}"
-            "-DBRIDGE_ANDROID_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-android.sh"
-            "-DBRIDGE_ANDROID_RUNNER_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/android-runner-${NAME}"
-            "-DBRIDGE_ANDROID_RUNNER_TEST_MODE=${MODE}"
-            -P "${PROJECT_SOURCE_DIR}/runner/android-test.cmake"
-    )
-    set_tests_properties(
+    _bridge_add_script_test(
         "bridge.runner.android.${NAME}"
-        PROPERTIES LABELS "runner;android"
+        SCRIPT "${PROJECT_SOURCE_DIR}/runner/android-test.cmake"
+        LABELS runner android
+        DEFINITIONS
+            "BRIDGE_ANDROID_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-android.sh"
+            "BRIDGE_ANDROID_RUNNER_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/android-runner-${NAME}"
+            "BRIDGE_ANDROID_RUNNER_TEST_MODE=${MODE}"
     )
 endfunction()
 
 function(_bridge_add_android_app_runner_test NAME MODE)
-    add_test(
-        NAME "bridge.runner.android-app.${NAME}"
-        COMMAND
-            "${CMAKE_COMMAND}"
-            "-DBRIDGE_ANDROID_APP_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-android-app.sh"
-            "-DBRIDGE_ANDROID_APP_RUNNER_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/android-app-runner-${NAME}"
-            "-DBRIDGE_ANDROID_APP_RUNNER_TEST_MODE=${MODE}"
-            -P "${PROJECT_SOURCE_DIR}/runner/android-app-test.cmake"
-    )
-    set_tests_properties(
+    _bridge_add_script_test(
         "bridge.runner.android-app.${NAME}"
-        PROPERTIES LABELS "runner;android"
+        SCRIPT "${PROJECT_SOURCE_DIR}/runner/android-app-test.cmake"
+        LABELS runner android
+        DEFINITIONS
+            "BRIDGE_ANDROID_APP_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-android-app.sh"
+            "BRIDGE_ANDROID_APP_RUNNER_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/android-app-runner-${NAME}"
+            "BRIDGE_ANDROID_APP_RUNNER_TEST_MODE=${MODE}"
     )
 endfunction()
 
 function(_bridge_add_android_activity_runner_test NAME MODE)
-    add_test(
-        NAME "bridge.runner.android-activity.${NAME}"
-        COMMAND "${CMAKE_COMMAND}"
-            "-DBRIDGE_ANDROID_ACTIVITY_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-android-activity-test.sh"
-            "-DBRIDGE_ACTIVITY_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/android-activity-${NAME}"
-            "-DBRIDGE_ACTIVITY_TEST_MODE=${MODE}"
-            -P "${PROJECT_SOURCE_DIR}/runner/android-activity-test.cmake"
+    _bridge_add_script_test(
+        "bridge.runner.android-activity.${NAME}"
+        SCRIPT "${PROJECT_SOURCE_DIR}/runner/android-activity-test.cmake"
+        LABELS runner android
+        DEFINITIONS
+            "BRIDGE_ANDROID_ACTIVITY_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-android-activity-test.sh"
+            "BRIDGE_ACTIVITY_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/android-activity-${NAME}"
+            "BRIDGE_ACTIVITY_TEST_MODE=${MODE}"
     )
-    set_tests_properties("bridge.runner.android-activity.${NAME}" PROPERTIES LABELS "runner;android")
 endfunction()
 
+# Extra arguments add labels and definitions, for the Wayland variants.
 function(_bridge_add_win32_runner_test NAME MODE)
-    add_test(
-        NAME "bridge.runner.win32.${NAME}"
-        COMMAND
-            "${CMAKE_COMMAND}"
-            "-DBRIDGE_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-win32.sh"
-            "-DBRIDGE_RUNNER_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/runner-${NAME}"
-            "-DBRIDGE_RUNNER_TEST_MODE=${MODE}"
-            -P "${PROJECT_SOURCE_DIR}/runner/test.cmake"
-    )
-    set_tests_properties(
+    cmake_parse_arguments(PARSE_ARGV 2 ARG "" "" "LABELS;DEFINITIONS")
+    _bridge_add_script_test(
         "bridge.runner.win32.${NAME}"
-        PROPERTIES LABELS "runner;win32"
+        SCRIPT "${PROJECT_SOURCE_DIR}/runner/test.cmake"
+        LABELS runner win32 ${ARG_LABELS}
+        DEFINITIONS
+            "BRIDGE_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-win32.sh"
+            "BRIDGE_RUNNER_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/runner-${NAME}"
+            "BRIDGE_RUNNER_TEST_MODE=${MODE}"
+            ${ARG_DEFINITIONS}
     )
 endfunction()
 
@@ -150,19 +139,14 @@ function(_bridge_add_emulated_execution_specimen)
         VERBATIM
     )
 
-    add_test(
-        NAME bridge.integration.execution.emulated
-        COMMAND
-            "${CMAKE_COMMAND}"
-            "-DBRIDGE_EMULATED_BINARY_DIR=${_bridge_binary_dir}"
-            "-DBRIDGE_EMULATED_CONFIG=$<CONFIG>"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/execution/verify-emulated.cmake"
-    )
-    set_tests_properties(
+    _bridge_add_script_test(
         bridge.integration.execution.emulated
-        PROPERTIES
-            LABELS "integration;execution;emulated"
-            TIMEOUT 120
+        SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/execution/verify-emulated.cmake"
+        LABELS integration execution emulated
+        TIMEOUT 120
+        DEFINITIONS
+            "BRIDGE_EMULATED_BINARY_DIR=${_bridge_binary_dir}"
+            "BRIDGE_EMULATED_CONFIG=$<CONFIG>"
     )
 endfunction()
 
@@ -185,29 +169,20 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
     add_executable(bridge_win32_wayland_socket_fixture win32-wayland-socket.cpp)
     target_compile_features(bridge_win32_wayland_socket_fixture PRIVATE cxx_std_26)
 
-    function(_bridge_add_win32_wayland_runner_test NAME MODE)
-        add_test(
-            NAME "bridge.runner.win32.${NAME}"
-            COMMAND
-                "${CMAKE_COMMAND}"
-                "-DBRIDGE_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-win32.sh"
-                "-DBRIDGE_RUNNER_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/runner-${NAME}"
-                "-DBRIDGE_RUNNER_TEST_MODE=${MODE}"
-                "-DBRIDGE_RUNNER_TEST_SOCKET_FIXTURE=$<TARGET_FILE:bridge_win32_wayland_socket_fixture>"
-                -P "${PROJECT_SOURCE_DIR}/runner/test.cmake"
+    foreach(_mode IN ITEMS
+        wayland
+        wayland-absolute
+        wayland-native-only
+        wayland-unavailable
+        wayland-missing-runtime
+        wayland-unavailable-no-x11
+    )
+        _bridge_add_win32_runner_test(
+            "${_mode}" "${_mode}"
+            LABELS wayland
+            DEFINITIONS "BRIDGE_RUNNER_TEST_SOCKET_FIXTURE=$<TARGET_FILE:bridge_win32_wayland_socket_fixture>"
         )
-        set_tests_properties(
-            "bridge.runner.win32.${NAME}"
-            PROPERTIES LABELS "runner;win32;wayland"
-        )
-    endfunction()
-
-    _bridge_add_win32_wayland_runner_test(wayland wayland)
-    _bridge_add_win32_wayland_runner_test(wayland-absolute wayland-absolute)
-    _bridge_add_win32_wayland_runner_test(wayland-native-only wayland-native-only)
-    _bridge_add_win32_wayland_runner_test(wayland-unavailable wayland-unavailable)
-    _bridge_add_win32_wayland_runner_test(wayland-missing-runtime wayland-missing-runtime)
-    _bridge_add_win32_wayland_runner_test(wayland-unavailable-no-x11 wayland-unavailable-no-x11)
+    endforeach()
 endif()
 
 _bridge_add_android_runner_test(output output)
@@ -224,42 +199,41 @@ _bridge_add_android_app_runner_test(run run)
 _bridge_add_android_app_runner_test(install-failure install-failure)
 _bridge_add_android_app_runner_test(device-selection selection)
 
+# On Android, one device lookup serves every on-device test. The profile names
+# the build in test names: android-arm64 or android-x86_64.
 if(ANDROID)
+    if(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+        set(_bridge_android_profile android-arm64)
+    else()
+        set(_bridge_android_profile "android-${CMAKE_ANDROID_ARCH_ABI}")
+    endif()
+
     if(BRIDGE_ANDROID_RUNTIME_AVAILABLE)
         _bridge_find_android_device(
             "${BRIDGE_ADB_EXECUTABLE}"
             "${CMAKE_ANDROID_ARCH_ABI}"
-            _bridge_android_execution_available
-            _bridge_android_execution_serial
-            _bridge_android_execution_reason
+            _bridge_android_device_available
+            _bridge_android_serial
+            _bridge_android_device_reason
         )
     else()
-        set(_bridge_android_execution_available FALSE)
-        set(_bridge_android_execution_reason "${BRIDGE_ANDROID_RUNTIME_UNAVAILABLE_REASON}")
+        set(_bridge_android_device_available FALSE)
+        set(_bridge_android_device_reason "${BRIDGE_ANDROID_RUNTIME_UNAVAILABLE_REASON}")
     endif()
 
-    if(_bridge_android_execution_available)
-        if(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
-            set(_bridge_android_execution_profile arm64)
-        else()
-            set(_bridge_android_execution_profile "${CMAKE_ANDROID_ARCH_ABI}")
-        endif()
+    if(_bridge_android_device_available)
         message(
             STATUS
-            "Bridge Android ${CMAKE_ANDROID_ARCH_ABI} execution integration: enabled "
-            "(${_bridge_android_execution_serial})"
+            "Bridge Android ${CMAKE_ANDROID_ARCH_ABI} execution integration: enabled (${_bridge_android_serial})"
         )
         _bridge_add_execution_specimen(
-            "android-${_bridge_android_execution_profile}"
+            "${_bridge_android_profile}"
             REMOTE
-            ANDROID_SERIAL "${_bridge_android_execution_serial}"
+            ANDROID_SERIAL "${_bridge_android_serial}"
         )
     else()
-        message(
-            STATUS
-            "Bridge Android ${CMAKE_ANDROID_ARCH_ABI} execution integration: disabled"
-        )
-        message(STATUS "  ${_bridge_android_execution_reason}")
+        message(STATUS "Bridge Android ${CMAKE_ANDROID_ARCH_ABI} execution integration: disabled")
+        message(STATUS "  ${_bridge_android_device_reason}")
     endif()
 elseif(WIN32 AND CMAKE_CROSSCOMPILING)
     message(STATUS "Bridge Win32 execution integration: enabled")
@@ -296,37 +270,21 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI MATCHES "^(x86_64|arm64-v8a)$")
         set(BRIDGE_ANDROID_GRAPHICS_SDL_SOURCE_DIR "${_bridge_sdl_source_dir}")
         add_subdirectory(android-graphics)
 
-        if(BRIDGE_ANDROID_RUNTIME_AVAILABLE)
-            _bridge_find_android_device(
-                "${BRIDGE_ADB_EXECUTABLE}"
-                "${CMAKE_ANDROID_ARCH_ABI}"
-                _bridge_android_graphics_device_available
-                _bridge_android_graphics_serial
-                _bridge_android_graphics_device_reason
-            )
-        else()
-            set(_bridge_android_graphics_device_available FALSE)
-            set(_bridge_android_graphics_device_reason "${BRIDGE_ANDROID_RUNTIME_UNAVAILABLE_REASON}")
-        endif()
-
-        if(_bridge_android_graphics_device_available)
-            message(
-                STATUS
-                "Bridge Android graphics integration test: enabled (${_bridge_android_graphics_serial})"
-            )
-            if(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
-                set(_bridge_android_graphics_profile arm64)
-            else()
-                set(_bridge_android_graphics_profile "${CMAKE_ANDROID_ARCH_ABI}")
-            endif()
-            _bridge_add_android_graphics_test(
-                "android-${_bridge_android_graphics_profile}"
-                APK "${BRIDGE_ANDROID_GRAPHICS_APK}"
-                ANDROID_SERIAL "${_bridge_android_graphics_serial}"
+        if(_bridge_android_device_available)
+            message(STATUS "Bridge Android graphics integration test: enabled (${_bridge_android_serial})")
+            _bridge_add_script_test(
+                "bridge.integration.graphics.${_bridge_android_profile}"
+                SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/android-graphics/test.cmake"
+                LABELS integration android graphics
+                TIMEOUT 120
+                DEFINITIONS
+                    "BRIDGE_APK=${BRIDGE_ANDROID_GRAPHICS_APK}"
+                    "BRIDGE_ADB_EXECUTABLE=${BRIDGE_ADB_EXECUTABLE}"
+                    "BRIDGE_ANDROID_SERIAL=${_bridge_android_serial}"
             )
         else()
             message(STATUS "Bridge Android graphics integration test: disabled")
-            message(STATUS "  ${_bridge_android_graphics_device_reason}")
+            message(STATUS "  ${_bridge_android_device_reason}")
         endif()
     else()
         message(STATUS "Bridge Android graphics APK: disabled")
@@ -353,7 +311,7 @@ else()
 endif()
 
 # Platform-neutral applications. The desktop fixture builds and runs real
-# programs; Android applications are APKs, which the graphics test covers.
+# programs; on Android, the graphics APK above is packaged through the same API.
 if(NOT ANDROID)
     if(Python3_Interpreter_FOUND)
         add_subdirectory(application)
@@ -362,33 +320,41 @@ if(NOT ANDROID)
     endif()
 endif()
 
+_bridge_add_script_test(
+    bridge.application.stage-directory
+    SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/application/stage-directory.cmake"
+    LABELS application
+    DEFINITIONS
+        "BRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/application-stage-directory"
+)
+
 # Configures a fixture that must fail. Argument checks do not depend on the
 # target, so fixtures configure for the host by default and need no compiler.
 # TARGET_PLATFORM fixtures configure with this build's toolchain and compiler,
 # for checks that only exist on the target platform.
 function(_bridge_add_configure_failure_test NAME EXPECTED_ERROR)
     cmake_parse_arguments(PARSE_ARGV 2 ARG "TARGET_PLATFORM" "" "")
-    set(_platform_arguments "")
+    set(_platform_definitions "")
     if(ARG_TARGET_PLATFORM)
-        set(_platform_arguments
-            "-DBRIDGE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}"
-            "-DBRIDGE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+        set(_platform_definitions
+            "BRIDGE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}"
+            "BRIDGE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
         )
     endif()
-    add_test(
-        NAME "bridge.application.errors.${NAME}"
-        COMMAND
-            "${CMAKE_COMMAND}"
-            "-DBRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
-            "-DBRIDGE_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/application/errors/${NAME}"
-            "-DBRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/application-errors/${NAME}"
-            "-DBRIDGE_GENERATOR=${CMAKE_GENERATOR}"
-            "-DBRIDGE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
-            ${_platform_arguments}
-            "-DBRIDGE_EXPECTED_ERROR=${EXPECTED_ERROR}"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/application/configure-failure.cmake"
+    _bridge_add_script_test(
+        "bridge.application.errors.${NAME}"
+        SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/application/configure-failure.cmake"
+        LABELS application configure
+        DEFINITIONS
+            "BRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "BRIDGE_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/application/errors/${NAME}"
+            "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/application-errors/${NAME}"
+            "BRIDGE_GENERATOR=${CMAKE_GENERATOR}"
+            "BRIDGE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
+            ${_platform_definitions}
+            "BRIDGE_EXPECTED_ERROR=${EXPECTED_ERROR}"
     )
-    set_tests_properties("bridge.application.errors.${NAME}" PROPERTIES LABELS "application;configure")
 endfunction()
 
 _bridge_add_configure_failure_test(
