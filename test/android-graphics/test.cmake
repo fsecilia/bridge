@@ -108,6 +108,25 @@ if(NOT "${_install_result}" STREQUAL "0")
     )
 endif()
 
+# Verify that DEBUGGABLE reaches the installed APK through the platform-neutral packaging API.
+execute_process(
+    COMMAND
+        "${BRIDGE_ADB_EXECUTABLE}" -s "${BRIDGE_ANDROID_SERIAL}"
+        shell run-as "${_bridge_package}" pwd
+    RESULT_VARIABLE _run_as_result
+    OUTPUT_VARIABLE _run_as_output
+    ERROR_VARIABLE _run_as_error
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_STRIP_TRAILING_WHITESPACE
+)
+if(NOT "${_run_as_result}" STREQUAL "0")
+    message(
+        FATAL_ERROR
+        "Bridge DEBUGGABLE APK did not allow adb run-as (${_run_as_result})\n"
+        "stdout:\n${_run_as_output}\nstderr:\n${_run_as_error}"
+    )
+endif()
+
 execute_process(
     COMMAND "${BRIDGE_ADB_EXECUTABLE}" -s "${BRIDGE_ANDROID_SERIAL}" logcat -c
     RESULT_VARIABLE _log_clear_result

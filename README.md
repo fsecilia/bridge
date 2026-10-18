@@ -188,7 +188,7 @@ bridge_add_sdl_android_application(
 
 `ASSET_DIRECTORY` copies the directory contents into the APK's `assets/` tree. `RUNTIME_TARGETS` can name additional shared-library targets that must ship beside `libmain.so` and `libSDL3.so`. Bridge rejects duplicate packaged targets and fails if two runtime libraries would overwrite the same staged library name. The packaging target exposes its APK path through the `BRIDGE_ANDROID_APK` target property.
 
-The packaging path uses a build-local debug signing key. Production signing, store packaging, and multi-ABI distribution remain separate concerns.
+The packaging path uses a build-local debug signing key. **Debug signing does not make an APK debuggable.** The optional `DEBUGGABLE` flag to `bridge_add_sdl_android_application()` (also forwarded by `bridge_add_sdl_application()` on Android) sets `android:debuggable="true"`. Without it, Bridge writes `android:debuggable="false"` explicitly, even in a CMake Debug build. Use this flag only for development and test APKs that need `adb shell run-as` to retrieve app-owned files. It is independent of optimization or build type, so an optimized Release benchmark can still use `run-as` without making shipping APKs debuggable. Production signing, store packaging, and multi-ABI distribution remain separate concerns.
 
 ### Android application runner
 

@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Frank Secilia
+
+foreach(_required IN ITEMS BRIDGE_ANDROID_MANIFEST_TEMPLATE BRIDGE_ANDROID_MANIFEST_TEST_DIRECTORY)
+    if(NOT DEFINED ${_required} OR "${${_required}}" STREQUAL "")
+        message(FATAL_ERROR "${_required} is required")
+    endif()
+endforeach()
+
+set(BRIDGE_ANDROID_APPLICATION_ID "com.example.debuggability")
+set(BRIDGE_ANDROID_VERSION_CODE "1")
+set(BRIDGE_ANDROID_VERSION_NAME "1.0")
+set(BRIDGE_ANDROID_MIN_API "28")
+set(BRIDGE_ANDROID_TARGET_API "35")
+set(BRIDGE_ANDROID_APPLICATION_NAME "Debuggability Check")
+set(BRIDGE_ANDROID_ICON_ATTRIBUTE "")
+
+file(MAKE_DIRECTORY "${BRIDGE_ANDROID_MANIFEST_TEST_DIRECTORY}")
+foreach(_value IN ITEMS false true)
+    set(BRIDGE_ANDROID_DEBUGGABLE "${_value}")
+    set(_path "${BRIDGE_ANDROID_MANIFEST_TEST_DIRECTORY}/AndroidManifest-${_value}.xml")
+    configure_file("${BRIDGE_ANDROID_MANIFEST_TEMPLATE}" "${_path}" @ONLY)
+    file(READ "${_path}" _manifest)
+    string(FIND "${_manifest}" "android:debuggable=\"${_value}\"" _found)
+    if(_found EQUAL -1)
+        message(FATAL_ERROR "Android manifest does not explicitly declare debuggable=${_value}:\n${_manifest}")
+    endif()
+    if(_manifest MATCHES "@[A-Za-z_]+@")
+        message(FATAL_ERROR "Android manifest has unsubstituted template variables:\n${_manifest}")
+    endif()
+endforeach()

@@ -35,6 +35,16 @@ function(_bridge_add_script_test NAME)
     endif()
 endfunction()
 
+# Check both manifest values on the host without an Android SDK or device.
+_bridge_add_script_test(
+    bridge.packaging.android-debuggable-manifest
+    SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/android-debuggable-manifest.cmake"
+    LABELS packaging android
+    DEFINITIONS
+        "BRIDGE_ANDROID_MANIFEST_TEMPLATE=${PROJECT_SOURCE_DIR}/cmake/BridgeAndroidManifest.xml.in"
+        "BRIDGE_ANDROID_MANIFEST_TEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/android-manifest-debuggable"
+)
+
 # Runner tests drive each runner script against fake adb or Wine executables,
 # so they run on any host. Each takes a test name and the mode its script runs.
 

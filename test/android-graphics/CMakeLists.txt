@@ -62,6 +62,7 @@ include("${PROJECT_SOURCE_DIR}/cmake/BridgeApplication.cmake")
 set(_bridge_apk "${CMAKE_CURRENT_BINARY_DIR}/bridge-android-graphics.apk")
 bridge_add_sdl_application(
     ALL
+    DEBUGGABLE
     TARGET bridge_android_graphics_apk
     RUN_TARGET bridge_android_graphics_run
     MAIN_TARGET bridge_android_graphics_main

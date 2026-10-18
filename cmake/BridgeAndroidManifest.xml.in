@@ -10,6 +10,7 @@
     <application
         android:allowBackup="false"
         android:extractNativeLibs="true"
+        android:debuggable="@BRIDGE_ANDROID_DEBUGGABLE@"
         android:hardwareAccelerated="true"
         android:label="@BRIDGE_ANDROID_APPLICATION_NAME@"
         @BRIDGE_ANDROID_ICON_ATTRIBUTE@

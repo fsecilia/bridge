@@ -177,9 +177,9 @@ endfunction()
 # Turns a shared library that exports an SDL entry point into the application
 # TARGET, and adds RUN_TARGET to build and start it.
 #
-# On Android, TARGET packages MAIN_TARGET as an APK through
-# bridge_add_sdl_android_application(); ALL, OUTPUT, VERSION_NAME,
-# VERSION_CODE, and MIN_API apply only there.
+# On Android, TARGET packages MAIN_TARGET as an APK through bridge_add_sdl_android_application().
+# ALL, OUTPUT, VERSION_NAME, VERSION_CODE, MIN_API, and DEBUGGABLE apply only there.
+# DEBUGGABLE is opt-in, including for optimized Release builds; never enable it implicitly.
 #
 # Elsewhere, TARGET is an executable built from LAUNCHER_SOURCES, a main() that
 # forwards to MAIN_TARGET, linked with MAIN_TARGET and SDL_TARGET under Canon's
@@ -197,7 +197,7 @@ endfunction()
 #       TARGET <name> RUN_TARGET <name> MAIN_TARGET <library>
 #       LAUNCHER_SOURCES <source>... SDL_TARGET <target> SDL_SOURCE_DIR <dir>
 #       APPLICATION_ID <id> APPLICATION_NAME <name>
-#       [ALL] [OUTPUT <apk>] [VERSION_NAME <name>] [VERSION_CODE <code>] [MIN_API <level>]
+#       [ALL] [DEBUGGABLE] [OUTPUT <apk>] [VERSION_NAME <name>] [VERSION_CODE <code>] [MIN_API <level>]
 #       [ASSET_DIRECTORY <dir>] [RUNTIME_TARGETS <library>...]
 #       [ICON_DIRECTORY <dir> ADAPTIVE_ICON_BACKGROUND_COLOR <color> [DESKTOP_CATEGORIES <categories>]])
 function(bridge_add_sdl_application)
@@ -218,7 +218,7 @@ function(bridge_add_sdl_application)
         ADAPTIVE_ICON_BACKGROUND_COLOR
         DESKTOP_CATEGORIES
     )
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "ALL" "${one_value_args}" "LAUNCHER_SOURCES;RUNTIME_TARGETS")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "ALL;DEBUGGABLE" "${one_value_args}" "LAUNCHER_SOURCES;RUNTIME_TARGETS")
     _bridge_check_arguments(
         bridge_add_sdl_application
         TARGET RUN_TARGET MAIN_TARGET LAUNCHER_SOURCES SDL_TARGET SDL_SOURCE_DIR APPLICATION_ID APPLICATION_NAME
@@ -250,6 +250,9 @@ function(bridge_add_sdl_application)
         set(_optional "")
         if(ARG_ALL)
             list(APPEND _optional ALL)
+        endif()
+        if(ARG_DEBUGGABLE)
+            list(APPEND _optional DEBUGGABLE)
         endif()
         foreach(_argument IN ITEMS OUTPUT VERSION_NAME VERSION_CODE MIN_API ASSET_DIRECTORY ICON_DIRECTORY
                 ADAPTIVE_ICON_BACKGROUND_COLOR)

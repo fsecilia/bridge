@@ -167,7 +167,7 @@ function(_bridge_android_require_shared_target TARGET_NAME ROLE OUT_TARGET)
 endfunction()
 
 function(bridge_add_sdl_android_application)
-    set(options ALL)
+    set(options ALL DEBUGGABLE)
     set(
         one_value_args
         TARGET
@@ -413,6 +413,12 @@ function(bridge_add_sdl_android_application)
     set(BRIDGE_ANDROID_VERSION_CODE "${_version_code}")
     set(BRIDGE_ANDROID_MIN_API "${_min_api}")
     set(BRIDGE_ANDROID_TARGET_API "${_target_api}")
+    # Debug access is independent of build type: optimized GPU tests need run-as, but shipping APKs must not enable it.
+    if(ARG_DEBUGGABLE)
+        set(BRIDGE_ANDROID_DEBUGGABLE "true")
+    else()
+        set(BRIDGE_ANDROID_DEBUGGABLE "false")
+    endif()
     file(MAKE_DIRECTORY "${_package_dir}")
     configure_file(
         "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/BridgeAndroidManifest.xml.in"
