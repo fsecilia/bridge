@@ -14,8 +14,7 @@
 
 namespace {
 
-auto testArguments(int argc, char const* const* argv) -> int
-{
+auto testArguments(int argc, char const* const* argv) -> int {
     if (argc != 3) {
         return 1;
     }
@@ -23,14 +22,12 @@ auto testArguments(int argc, char const* const* argv) -> int
     return std::string_view{argv[2]} == "two words" ? 0 : 1;
 }
 
-auto testEnvironment() -> int
-{
+auto testEnvironment() -> int {
     auto const* const value = std::getenv("BRIDGE_SPECIMEN_VALUE");
     return value != nullptr && std::string_view{value} == "from-ctest" ? 0 : 1;
 }
 
-auto testWorkingDirectory(int argc, char const* const* argv) -> int
-{
+auto testWorkingDirectory(int argc, char const* const* argv) -> int {
     if (argc != 3) {
         return 1;
     }
@@ -38,20 +35,17 @@ auto testWorkingDirectory(int argc, char const* const* argv) -> int
     return std::filesystem::exists(std::filesystem::path{argv[2]}) ? 0 : 1;
 }
 
-auto testOutput() -> int
-{
+auto testOutput() -> int {
     std::cout << "bridge specimen output\n";
     return 0;
 }
 
-auto testFailure() -> int
-{
+auto testFailure() -> int {
     return 7;
 }
 
 #ifdef _WIN32
-auto testResource() -> int
-{
+auto testResource() -> int {
     auto const resource = FindResource(nullptr, MAKEINTRESOURCE(1), RT_RCDATA);
     if (resource == nullptr) {
         return 1;
@@ -63,8 +57,7 @@ auto testResource() -> int
 
 } // namespace
 
-int main(int argc, char const* const* argv)
-{
+int main(int argc, char const* const* argv) {
     if (argc < 2) {
         return 1;
     }

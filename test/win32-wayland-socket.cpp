@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Frank Secilia
 
-#include <cerrno>
-#include <cstdio>
-#include <cstring>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
 
 int main(int argc, char* argv[]) {
     if (argc != 2 || std::strlen(argv[1]) >= sizeof(sockaddr_un::sun_path)) {

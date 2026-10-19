@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Frank Secilia
 
-int main()
-{
+int main() {
     return 0;
 }

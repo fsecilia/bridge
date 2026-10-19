@@ -9,8 +9,7 @@
 
 int main(int argc, char const* const* argv) {
     auto const arguments = std::views::counted(argv, static_cast<std::ptrdiff_t>(argc));
-    if (argc != 3 || std::strcmp(arguments[1], "two words") != 0 ||
-        std::strcmp(arguments[2], "single'quote") != 0) {
+    if (argc != 3 || std::strcmp(arguments[1], "two words") != 0 || std::strcmp(arguments[2], "single'quote") != 0) {
         std::cerr << "Bridge native test: arguments were changed\n";
         return 1;
     }

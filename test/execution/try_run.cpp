@@ -6,8 +6,7 @@
 #include <cstdlib>
 #include <iostream>
 
-int main()
-{
+int main() {
     if (std::getenv("BRIDGE_TEST_EMULATOR") != nullptr) {
         std::cout << "bridge test emulator marker\n";
     }
