@@ -48,8 +48,14 @@ PackConstructorInitializers: Never
 # includes
 IncludeIsMainRegex: '(_test)?$'
 IncludeCategories:
-  - Regex: '.*'
+  - Regex: '^"[^/"]+"$'
+    Priority: -1
+  - Regex: '^"'
     Priority: 1
+  - Regex: '^<.*(/|\.h>)'
+    Priority: 2
+  - Regex: '.*'
+    Priority: 3
 SortIncludes: CaseSensitive
 
 # misc
