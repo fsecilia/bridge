@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Frank Secilia
 
-"""Validate consumer-rendered icons and assemble platform icon resources.
+"""Validate content-based icon families and package platform resources.
 
-No image is resized. The PNGs are embedded or copied byte-for-byte.
+Opaque images supply Android legacy icons. Adaptive and monochrome images supply Android adaptive layers. Transparent images supply Windows ICO and Linux desktop icons. No image is resized; Bridge copies or embeds the source PNG bytes unchanged.
 """
 
 import argparse
@@ -16,9 +16,9 @@ import zlib
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-COMPLETE_SIZES = (16, 24, 32, 48, 64, 72, 96, 128, 144, 192, 256, 512)
+STANDALONE_SIZES = (16, 24, 32, 48, 64, 72, 96, 128, 144, 192, 256, 512)
 ADAPTIVE_SIZES = (108, 162, 216, 324, 432)
-WINDOWS_SIZES = (16, 24, 32, 48, 64, 256)
+ICO_SIZES = (16, 24, 32, 48, 64, 256)
 ANDROID_DENSITIES = (
     ("mdpi", 48, 108),
     ("hdpi", 72, 162),
@@ -29,11 +29,28 @@ ANDROID_DENSITIES = (
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
+def opaque_path(size: int) -> str:
+    return f"opaque/{size}.png"
+
+
+def transparent_path(size: int) -> str:
+    return f"transparent/{size}.png"
+
+
+def adaptive_path(size: int) -> str:
+    return f"adaptive/{size}.png"
+
+
+def monochrome_path(size: int) -> str:
+    return f"monochrome/{size}.png"
+
+
 def required_files():
     return (
-        *(f"icon-{size}.png" for size in COMPLETE_SIZES),
-        *(f"foreground-{size}.png" for size in ADAPTIVE_SIZES),
-        *(f"monochrome-{size}.png" for size in ADAPTIVE_SIZES),
+        *(opaque_path(size) for size in STANDALONE_SIZES),
+        *(transparent_path(size) for size in STANDALONE_SIZES),
+        *(adaptive_path(size) for size in ADAPTIVE_SIZES),
+        *(monochrome_path(size) for size in ADAPTIVE_SIZES),
     )
 
 
@@ -104,16 +121,16 @@ def validate_directory(source: Path):
     if not source.is_dir():
         raise ValueError(f"icon directory does not exist: {source}")
     for filename in required_files():
-        validate_png(source / filename, int(filename.split("-")[-1][:-4]))
+        validate_png(source / filename, int(Path(filename).stem))
 
 
 def write_ico(source: Path, output: Path):
-    images = [validate_png(source / f"icon-{size}.png", size) for size in WINDOWS_SIZES]
+    images = [validate_png(source / transparent_path(size), size) for size in ICO_SIZES]
     output.parent.mkdir(parents=True, exist_ok=True)
     header = struct.pack("<HHH", 0, 1, len(images))
     offset = len(header) + 16 * len(images)
     entries = bytearray()
-    for size, image in zip(WINDOWS_SIZES, images):
+    for size, image in zip(ICO_SIZES, images):
         entries.extend(struct.pack("<BBBBHHII", size % 256, size % 256, 0, 0, 1, 32, len(image), offset))
         offset += len(image)
     output.write_bytes(header + entries + b"".join(images))
@@ -124,15 +141,15 @@ def write_android(source: Path, output: Path, background: str):
         raise ValueError(f"adaptive background must be #RRGGBB, got {background!r}")
     if output.exists():
         shutil.rmtree(output)
-    for density, legacy, adaptive in ANDROID_DENSITIES:
+    for density, legacy_size, adaptive_size in ANDROID_DENSITIES:
         directory = output / f"mipmap-{density}"
         directory.mkdir(parents=True)
-        for filename, size in (
-            ("ic_launcher.png", f"icon-{legacy}.png"),
-            ("ic_launcher_foreground.png", f"foreground-{adaptive}.png"),
-            ("ic_launcher_monochrome.png", f"monochrome-{adaptive}.png"),
+        for resource_name, source_path in (
+            ("ic_launcher.png", opaque_path(legacy_size)),
+            ("ic_launcher_foreground.png", adaptive_path(adaptive_size)),
+            ("ic_launcher_monochrome.png", monochrome_path(adaptive_size)),
         ):
-            shutil.copyfile(source / size, directory / filename)
+            shutil.copyfile(source / source_path, directory / resource_name)
 
     values = output / "values"
     values.mkdir()

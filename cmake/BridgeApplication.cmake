@@ -185,10 +185,9 @@ endfunction()
 # forwards to MAIN_TARGET, linked with MAIN_TARGET and SDL_TARGET under Canon's
 # build policy. bridge_stage_runtime() makes it runnable from the build tree.
 #
-# ICON_DIRECTORY adds the application icon: launcher resources in the APK, an
-# embedded resource on Windows, and an installed desktop entry with
-# DESKTOP_CATEGORIES on Linux. Its arguments are validated on every platform,
-# so a project that configures on one platform does not fail later on another.
+# ICON_DIRECTORY names the full content-based icon tree, not a platform-specific set. Android packages opaque/,
+# adaptive/, and monochrome/; Windows embeds an ICO from transparent/; Linux installs transparent/ as hicolor icons.
+# On Linux, DESKTOP_CATEGORIES also sets the categories of the installed .desktop entry.
 #
 # RUNTIME_TARGETS lists additional shared libraries the application loads. They
 # ship in the APK and are installed with the Linux desktop application.
@@ -285,7 +284,7 @@ function(bridge_add_sdl_application)
 
     if(ARG_ICON_DIRECTORY)
         if(WIN32)
-            bridge_add_win32_application_icon(TARGET "${ARG_TARGET}" ICON_DIRECTORY "${ARG_ICON_DIRECTORY}")
+            bridge_embed_win32_application_icon(TARGET "${ARG_TARGET}" ICON_DIRECTORY "${ARG_ICON_DIRECTORY}")
         elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             set(_optional "")
             foreach(_argument IN ITEMS ASSET_DIRECTORY)

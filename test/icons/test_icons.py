@@ -15,8 +15,8 @@ icons = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(icons)
 
 
-def png(size):
-    row = b"\x00" + b"\x00\x00\x00\xff" * size
+def png(size, color=b"\x00\x00\x00\xff"):
+    row = b"\x00" + color * size
     pixels = row * size
 
     def chunk(tag, body):
@@ -38,22 +38,25 @@ class IconsTest(unittest.TestCase):
         self.source = self.root / "icons"
         self.source.mkdir()
         for filename in icons.required_files():
-            size = int(filename.split("-")[-1][:-4])
-            (self.source / filename).write_bytes(png(size))
+            path = self.source / filename
+            path.parent.mkdir(parents=True, exist_ok=True)
+            size = int(Path(filename).stem)
+            color = b"\x33\x88\xf0\x60" if filename.startswith("transparent/") else b"\x00\x00\x00\xff"
+            path.write_bytes(png(size, color))
 
     def test_validation_and_missing_file(self):
         icons.validate_directory(self.source)
-        (self.source / "icon-32.png").unlink()
-        with self.assertRaisesRegex(ValueError, "icon-32.png: cannot read"):
+        (self.source / "opaque/32.png").unlink()
+        with self.assertRaisesRegex(ValueError, "opaque/32.png: cannot read"):
             icons.validate_directory(self.source)
 
     def test_wrong_dimensions_are_rejected(self):
-        (self.source / "foreground-162.png").write_bytes(png(108))
+        (self.source / "adaptive/162.png").write_bytes(png(108))
         with self.assertRaisesRegex(ValueError, "expected 162x162, got 108x108"):
             icons.validate_directory(self.source)
 
     def test_corrupted_checksum_is_rejected(self):
-        path = self.source / "icon-16.png"
+        path = self.source / "opaque/16.png"
         data = bytearray(path.read_bytes())
         data[29] ^= 1
         path.write_bytes(data)
@@ -64,22 +67,23 @@ class IconsTest(unittest.TestCase):
         output = self.root / "application.ico"
         icons.write_ico(self.source, output)
         data = output.read_bytes()
-        self.assertEqual(struct.unpack_from("<HHH", data), (0, 1, len(icons.WINDOWS_SIZES)))
-        for index, size in enumerate(icons.WINDOWS_SIZES):
+        self.assertEqual(struct.unpack_from("<HHH", data), (0, 1, len(icons.ICO_SIZES)))
+        for index, size in enumerate(icons.ICO_SIZES):
             width, height, _, _, _, _, length, offset = struct.unpack_from(
                 "<BBBBHHII", data, 6 + 16 * index
             )
             self.assertEqual((width, height), (size % 256, size % 256))
-            self.assertEqual(data[offset : offset + length], (self.source / f"icon-{size}.png").read_bytes())
+            self.assertEqual(data[offset : offset + length], (self.source / icons.transparent_path(size)).read_bytes())
+            self.assertNotEqual(data[offset : offset + length], (self.source / icons.opaque_path(size)).read_bytes())
 
     def test_android_resources_and_background(self):
         output = self.root / "res"
         icons.write_android(self.source, output, "#070508")
         for density, legacy, adaptive in icons.ANDROID_DENSITIES:
             for filename, source in (
-                ("ic_launcher.png", f"icon-{legacy}.png"),
-                ("ic_launcher_foreground.png", f"foreground-{adaptive}.png"),
-                ("ic_launcher_monochrome.png", f"monochrome-{adaptive}.png"),
+                ("ic_launcher.png", icons.opaque_path(legacy)),
+                ("ic_launcher_foreground.png", icons.adaptive_path(adaptive)),
+                ("ic_launcher_monochrome.png", icons.monochrome_path(adaptive)),
             ):
                 self.assertEqual(
                     (output / f"mipmap-{density}" / filename).read_bytes(),

@@ -45,7 +45,7 @@ extern "C" BRIDGE_APPLICATION_EXPORT int bridge_application_entry() {
         std::cerr << "Bridge application: runtime assets were not staged beside " << directory << "\n";
         return 1;
     }
-    if (!std::filesystem::is_regular_file(directory / "icons" / "icon-32.png")) {
+    if (!std::filesystem::is_regular_file(directory / "icons" / "transparent" / "32.png")) {
         std::cerr << "Bridge application: icons were not staged beside " << directory << "\n";
         return 1;
     }

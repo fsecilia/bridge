@@ -3,8 +3,8 @@
 
 include_guard(GLOBAL)
 
-# Shared by Android, Windows, and Linux packaging. Rendering remains the
-# consumer's responsibility; Bridge only validates and packages PNGs.
+# Shared by Android, Windows, and Linux packaging. ICON_DIRECTORY points to one consumer-rendered tree with
+# opaque/, transparent/, adaptive/, and monochrome/ families. Bridge validates and packages the images without resizing.
 function(_bridge_validate_icon_directory DIRECTORY OUT_DIRECTORY OUT_PYTHON OUT_DEPENDENCIES)
     set(_directory "${DIRECTORY}")
     cmake_path(ABSOLUTE_PATH _directory BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE)
@@ -22,49 +22,47 @@ function(_bridge_validate_icon_directory DIRECTORY OUT_DIRECTORY OUT_PYTHON OUT_
     if(NOT _result EQUAL 0)
         message(FATAL_ERROR "Bridge icon validation failed:\n${_stdout}${_stderr}")
     endif()
-    file(GLOB _dependencies CONFIGURE_DEPENDS LIST_DIRECTORIES FALSE "${_directory}/*.png")
+    file(GLOB_RECURSE _dependencies CONFIGURE_DEPENDS LIST_DIRECTORIES FALSE "${_directory}/*.png")
     set(${OUT_DIRECTORY} "${_directory}" PARENT_SCOPE)
     set(${OUT_PYTHON} "${Python3_EXECUTABLE}" PARENT_SCOPE)
     set(${OUT_DEPENDENCIES} "${_dependencies}" PARENT_SCOPE)
 endfunction()
 
-# Embed a multi-resolution .ico in an existing consumer-owned Windows executable.
-# CMake enables RC itself for any Windows project that enables C or C++. For
-# other projects, the public macro enables RC when it expands at directory
-# scope. Expanded inside a function, enabling RC would not reach the directory
-# that builds the executable, so that case is an error instead.
-macro(bridge_add_win32_application_icon)
+# Embed a Windows ICO assembled from transparent/ PNGs into an existing consumer-owned executable.
+# This public entry point is a macro so it can enable RC in the caller's directory if needed.
+# When invoked inside a function without RC already enabled, report an error instead of configuring the wrong scope.
+macro(bridge_embed_win32_application_icon)
     if(NOT WIN32)
-        message(FATAL_ERROR "bridge_add_win32_application_icon() requires Windows")
+        message(FATAL_ERROR "bridge_embed_win32_application_icon() requires Windows")
     endif()
     if(NOT CMAKE_RC_COMPILER_LOADED)
         if(CMAKE_CURRENT_FUNCTION)
             message(
                 FATAL_ERROR
-                "bridge_add_win32_application_icon(): RC is not enabled, and it cannot be enabled from inside "
+                "bridge_embed_win32_application_icon(): RC is not enabled, and it cannot be enabled from inside "
                 "${CMAKE_CURRENT_FUNCTION}(). Call enable_language(RC) in the directory that defines the "
                 "executable, or in a parent directory, before calling ${CMAKE_CURRENT_FUNCTION}()."
             )
         endif()
         enable_language(RC)
     endif()
-    _bridge_add_win32_application_icon(${ARGN})
+    _bridge_embed_win32_application_icon(${ARGN})
 endmacro()
 
-function(_bridge_add_win32_application_icon)
+function(_bridge_embed_win32_application_icon)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "" "TARGET;ICON_DIRECTORY" "")
     if(ARG_UNPARSED_ARGUMENTS OR ARG_KEYWORDS_MISSING_VALUES)
-        message(FATAL_ERROR "bridge_add_win32_application_icon(): invalid arguments")
+        message(FATAL_ERROR "bridge_embed_win32_application_icon(): invalid arguments")
     endif()
     if(NOT WIN32)
-        message(FATAL_ERROR "bridge_add_win32_application_icon() requires Windows")
+        message(FATAL_ERROR "bridge_embed_win32_application_icon() requires Windows")
     endif()
     if(NOT TARGET "${ARG_TARGET}" OR NOT ARG_ICON_DIRECTORY)
-        message(FATAL_ERROR "bridge_add_win32_application_icon(): TARGET and ICON_DIRECTORY are required")
+        message(FATAL_ERROR "bridge_embed_win32_application_icon(): TARGET and ICON_DIRECTORY are required")
     endif()
     get_target_property(_type "${ARG_TARGET}" TYPE)
     if(NOT _type STREQUAL "EXECUTABLE")
-        message(FATAL_ERROR "bridge_add_win32_application_icon(): '${ARG_TARGET}' must be an executable")
+        message(FATAL_ERROR "bridge_embed_win32_application_icon(): '${ARG_TARGET}' must be an executable")
     endif()
     _bridge_validate_icon_directory("${ARG_ICON_DIRECTORY}" _directory _python _dependencies)
 
@@ -89,7 +87,7 @@ function(_bridge_add_win32_application_icon)
     target_sources("${ARG_TARGET}" PRIVATE "${_rc}")
 endfunction()
 
-# Install the desktop file and themed icons alongside a Linux executable.
+# Install a Linux desktop entry and transparent/ hicolor icons alongside the executable and its explicit dependencies.
 function(bridge_install_linux_desktop_application)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "" "TARGET;APPLICATION_ID;APPLICATION_NAME;ICON_DIRECTORY;ASSET_DIRECTORY;CATEGORIES" "RUNTIME_TARGETS")
     if(ARG_UNPARSED_ARGUMENTS OR ARG_KEYWORDS_MISSING_VALUES)
@@ -175,12 +173,12 @@ function(bridge_install_linux_desktop_application)
     if(_asset_directory)
         install(DIRECTORY "${_asset_directory}/" DESTINATION "${CMAKE_INSTALL_BINDIR}")
     endif()
-    # SDL title storage reads icons beside the application binary.
+    # SDL loads icons/transparent/*.png beside the executable; Linux hicolor gets the same artwork under the app ID.
     install(DIRECTORY "${_directory}/" DESTINATION "${CMAKE_INSTALL_BINDIR}/icons")
     install(FILES "${_desktop}" DESTINATION share/applications)
-    foreach(_size IN ITEMS 16 24 32 48 64 128 256 512)
+    foreach(_size IN ITEMS 16 24 32 48 64 72 96 128 144 192 256 512)
         install(
-            FILES "${_directory}/icon-${_size}.png"
+            FILES "${_directory}/transparent/${_size}.png"
             DESTINATION "share/icons/hicolor/${_size}x${_size}/apps"
             RENAME "${ARG_APPLICATION_ID}.png"
         )

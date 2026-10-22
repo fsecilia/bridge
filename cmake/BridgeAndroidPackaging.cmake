@@ -323,6 +323,7 @@ function(bridge_add_sdl_android_application)
                 "bridge_add_sdl_android_application(): ADAPTIVE_ICON_BACKGROUND_COLOR must be #RRGGBB"
             )
         endif()
+        # Legacy launcher icons use opaque/; adaptive foreground and themed layers use adaptive/ and monochrome/.
         _bridge_validate_icon_directory("${ARG_ICON_DIRECTORY}" _icon_directory _icon_python _icon_dependencies)
         set(BRIDGE_ANDROID_ICON_ATTRIBUTE "android:icon=\"@mipmap/ic_launcher\"")
         set(_icon_script "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/bridge_icons.py")

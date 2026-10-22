@@ -212,14 +212,9 @@ The run target is developer tooling, not a test. It may build its APK dependency
 
 ### Application icons and Linux desktop integration
 
-Bridge accepts consumer-rendered PNGs. It does not render or resample icon
-artwork. An icon directory contains the complete icons `icon-<size>.png` at
-16, 24, 32, 48, 64, 72, 96, 128, 144, 192, 256, and 512 pixels, plus
-`foreground-<size>.png` and `monochrome-<size>.png` at 108, 162, 216, 324,
-and 432 pixels. Every file must be a square, non-interlaced, 8-bit RGB or
-RGBA PNG with the specified dimensions. Bridge validates all 22 files at configuration time and revalidates when
-generating Windows or Android resources. These packaging helpers require a
-host Python 3 interpreter only when icon support is requested.
+Bridge accepts one directory of consumer-rendered icon images. Filenames describe the image content, not the target platform: `opaque/<size>.png` has a solid background, `transparent/<size>.png` has the same standalone artwork with alpha, `adaptive/<size>.png` has transparent Android safe-area artwork, and `monochrome/<size>.png` has Android themed-icon artwork. The opaque and transparent families each contain sizes 16, 24, 32, 48, 64, 72, 96, 128, 144, 192, 256, and 512. The adaptive and monochrome families each contain sizes 108, 162, 216, 324, and 432. Every image must be square, non-interlaced, 8-bit RGB or RGBA PNG with the expected dimensions. Bridge validates all 34 images at configuration time and revalidates resources when generating Windows or Android packages. No image is resized. These packaging helpers require host Python 3 only when icons are requested.
+
+Bridge chooses the family for each platform: Android legacy launcher resources use `opaque/`, Android adaptive foregrounds use `adaptive/`, and Android themed icons use `monochrome/`. Windows executables embed a multi-resolution ICO assembled from a subset of `transparent/` (16, 24, 32, 48, 64, and 256). Linux installs `transparent/` files into the hicolor icon directories, and SDL can load the same transparent artwork for window icons. The `ICON_DIRECTORY` argument always names the root of the complete family tree; platform callers do not select a family themselves.
 
 For Android, add the following arguments to `bridge_add_sdl_android_application`:
 
@@ -228,29 +223,19 @@ ICON_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/icons"
 ADAPTIVE_ICON_BACKGROUND_COLOR "#070508"
 ```
 
-Bridge places the complete icons in density-specific launcher resources,
-creates the adaptive foreground and monochrome layers, supplies the solid
-background color, and compiles the resources with AAPT2. The manifest points
-to `@mipmap/ic_launcher`. Existing consumers can omit both icon arguments;
-that preserves their previous behavior without an application icon. Supplying
-only one of these two arguments is an error.
+Bridge copies `opaque/` images into density-specific legacy launcher resources, creates adaptive foreground and monochrome layers from `adaptive/` and `monochrome/`, supplies the solid background color, and compiles resources with AAPT2. The manifest points to `@mipmap/ic_launcher`. Consumers may omit both icon arguments to build without an application icon; supplying only one is an error.
 
 For a Windows executable, use:
 
 ```cmake
 include(external/bridge/cmake/BridgeApplicationIcons.cmake)
-bridge_add_win32_application_icon(
+bridge_embed_win32_application_icon(
     TARGET game_exe
     ICON_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/icons"
 )
 ```
 
-Bridge assembles the provided PNGs into a multi-resolution ICO and compiles a
-Windows icon resource into the executable. The consumer retains ownership of
-the executable target. The Bridge Win32 toolchain provides a resource compiler,
-and CMake enables RC for every Windows project that enables C or C++. In a
-project without them, this function enables RC when called at directory scope;
-called from inside a function it cannot, so it reports an error instead.
+Bridge embeds a multi-resolution ICO assembled from the `transparent/` PNGs in the consumer-owned Windows executable. The public `bridge_embed_win32_application_icon()` macro enables RC at directory scope when needed and then delegates to an implementation function. A Windows project that enables C or C++ normally already has RC enabled. If a project does not, calling the macro from inside a CMake function fails explicitly because RC cannot be enabled for the target's directory from there.
 
 For Linux desktop installation, use:
 
@@ -267,13 +252,4 @@ bridge_install_linux_desktop_application(
 )
 ```
 
-This installs the executable, its explicit shared runtime targets, the
-optional runtime assets beside the executable, `com.example.game.desktop`
-under `share/applications`, and the desktop icons under `share/icons/hicolor`.
-The executable and its packaged shared libraries receive install RPATHs
-relative to the installation prefix. System libraries remain provided by the
-host system; this is not a fully self-contained application bundle.
-`CATEGORIES`, `ASSET_DIRECTORY`, and `RUNTIME_TARGETS` are optional. The application should use the same identifier
-for its window system metadata so Wayland can associate its window with the
-installed desktop entry. `SDL_SetWindowIcon()` remains the consumer's
-responsibility and is independent of these install resources.
+This installs the executable, its explicit shared runtime targets, optional runtime assets, and `com.example.game.desktop` under `share/applications`. Linux hicolor directories receive the `transparent/` PNGs renamed to the application ID. Executable and packaged-library RPATHs are relative to the installation prefix; the host still provides system libraries. `CATEGORIES`, `ASSET_DIRECTORY`, and `RUNTIME_TARGETS` are optional. The application should use the same ID in its window-system metadata so Wayland can associate its window with the desktop entry. `SDL_SetWindowIcon()` remains the consumer's responsibility and is separate from the installed desktop icons.

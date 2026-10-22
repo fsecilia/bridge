@@ -34,8 +34,10 @@ def main():
     output = Path(sys.argv[1])
     output.mkdir(parents=True, exist_ok=True)
     for filename in icons.required_files():
-        size = int(filename.split("-")[-1][:-4])
-        (output / filename).write_bytes(png(size))
+        path = output / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        size = int(Path(filename).stem)
+        path.write_bytes(png(size))
     icons.validate_directory(output)
 
 
