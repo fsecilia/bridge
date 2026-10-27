@@ -30,6 +30,13 @@
       ]
     },
     {
+      "name": "win32-rel-with-deb-info",
+      "inherits": [
+        "bridge-win32",
+        "canon-rel-with-deb-info"
+      ]
+    },
+    {
       "name": "win32-asan",
       "inherits": [
         "bridge-win32",
@@ -87,6 +94,13 @@
       ]
     },
     {
+      "name": "android-x86_64-rel-with-deb-info",
+      "inherits": [
+        "bridge-android-x86_64",
+        "canon-rel-with-deb-info"
+      ]
+    },
+    {
       "name": "android-x86_64-asan",
       "inherits": [
         "bridge-android-x86_64",
@@ -122,6 +136,13 @@
       ]
     },
     {
+      "name": "android-arm64-rel-with-deb-info",
+      "inherits": [
+        "bridge-android-arm64",
+        "canon-rel-with-deb-info"
+      ]
+    },
+    {
       "name": "android-arm64-asan",
       "inherits": [
         "bridge-android-arm64",
@@ -151,6 +172,10 @@
     {
       "name": "win32-release",
       "configurePreset": "win32-release"
+    },
+    {
+      "name": "win32-rel-with-deb-info",
+      "configurePreset": "win32-rel-with-deb-info"
     },
     {
       "name": "win32-asan",
@@ -187,6 +212,10 @@
       "configurePreset": "android-x86_64-release"
     },
     {
+      "name": "android-x86_64-rel-with-deb-info",
+      "configurePreset": "android-x86_64-rel-with-deb-info"
+    },
+    {
       "name": "android-x86_64-asan",
       "configurePreset": "android-x86_64-asan"
     },
@@ -219,6 +248,10 @@
     {
       "name": "android-arm64-release",
       "configurePreset": "android-arm64-release"
+    },
+    {
+      "name": "android-arm64-rel-with-deb-info",
+      "configurePreset": "android-arm64-rel-with-deb-info"
     },
     {
       "name": "android-arm64-asan",
@@ -259,6 +292,11 @@
       "configurePreset": "win32-release"
     },
     {
+      "name": "win32-rel-with-deb-info",
+      "inherits": "_canon-test",
+      "configurePreset": "win32-rel-with-deb-info"
+    },
+    {
       "name": "win32-asan",
       "inherits": "_canon-test",
       "configurePreset": "win32-asan"
@@ -284,6 +322,11 @@
       "configurePreset": "android-x86_64-release"
     },
     {
+      "name": "android-x86_64-rel-with-deb-info",
+      "inherits": "_canon-test",
+      "configurePreset": "android-x86_64-rel-with-deb-info"
+    },
+    {
       "name": "android-x86_64-asan",
       "inherits": "_canon-test",
       "configurePreset": "android-x86_64-asan"
@@ -307,6 +350,11 @@
       "name": "android-arm64-release",
       "inherits": "_canon-test",
       "configurePreset": "android-arm64-release"
+    },
+    {
+      "name": "android-arm64-rel-with-deb-info",
+      "inherits": "_canon-test",
+      "configurePreset": "android-arm64-rel-with-deb-info"
     },
     {
       "name": "android-arm64-asan",
@@ -356,6 +404,23 @@
         {
           "type": "test",
           "name": "win32-release"
+        }
+      ]
+    },
+    {
+      "name": "win32-rel-with-deb-info",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "win32-rel-with-deb-info"
+        },
+        {
+          "type": "build",
+          "name": "win32-rel-with-deb-info"
+        },
+        {
+          "type": "test",
+          "name": "win32-rel-with-deb-info"
         }
       ]
     },
@@ -453,6 +518,23 @@
       ]
     },
     {
+      "name": "android-x86_64-rel-with-deb-info",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-x86_64-rel-with-deb-info"
+        },
+        {
+          "type": "build",
+          "name": "android-x86_64-rel-with-deb-info"
+        },
+        {
+          "type": "test",
+          "name": "android-x86_64-rel-with-deb-info"
+        }
+      ]
+    },
+    {
       "name": "android-x86_64-asan",
       "steps": [
         {
@@ -542,6 +624,23 @@
         {
           "type": "test",
           "name": "android-arm64-release"
+        }
+      ]
+    },
+    {
+      "name": "android-arm64-rel-with-deb-info",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-arm64-rel-with-deb-info"
+        },
+        {
+          "type": "build",
+          "name": "android-arm64-rel-with-deb-info"
+        },
+        {
+          "type": "test",
+          "name": "android-arm64-rel-with-deb-info"
         }
       ]
     },
