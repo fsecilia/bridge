@@ -4,10 +4,7 @@ Bridge makes supported foreign targets behave as locally as practical from a Lin
 
 ## Applications on every platform
 
-`BridgeApplication.cmake` turns a shared library with an SDL entry point into a
-runnable application on Linux, Windows, and Android with one call. It chooses
-the platform-specific functions described in the sections below, so the
-consumer does not branch on the platform.
+`BridgeApplication.cmake` turns a shared library with an SDL entry point into a runnable application on Linux, Windows, and Android with one call. It chooses the platform-specific functions described in the sections below, so the consumer does not branch on the platform.
 
 ```cmake
 include(external/bridge/cmake/BridgeApplication.cmake)
@@ -32,20 +29,11 @@ bridge_add_sdl_application(
 )
 ```
 
-On Android, `game` is the APK packaging target and `game_run` installs and
-launches it. `ALL`, `OUTPUT`, `VERSION_NAME`, `VERSION_CODE`, and `MIN_API`
-apply only to the APK.
+On Android, `game` is the APK packaging target and `game_run` installs and launches it. `ALL`, `OUTPUT`, `VERSION_NAME`, `VERSION_CODE`, and `MIN_API` apply only to the APK.
 
-Elsewhere, `game` is an executable built from `LAUNCHER_SOURCES`, a `main()`
-that forwards to the library, linked with `MAIN_TARGET` and `SDL_TARGET`. It
-receives Canon's build policy, so Canon must be loaded first. `game_run` runs it
-under Bridge's Wine runner on Windows and directly on the host otherwise.
-`MAIN_TARGET` must be a shared library on every platform, because Android loads
-it as `libmain.so`.
+Elsewhere, `game` is an executable built from `LAUNCHER_SOURCES`, a `main()` that forwards to the library, linked with `MAIN_TARGET` and `SDL_TARGET`. It receives Canon's build policy, so Canon must be loaded first. `game_run` runs it under Bridge's Wine runner on Windows and directly on the host otherwise. `MAIN_TARGET` must be a shared library on every platform, because Android loads it as `libmain.so`.
 
-`ICON_DIRECTORY` adds the Android launcher icons, the embedded Windows icon, or
-the Linux desktop entry. Its companion arguments are validated on every
-platform, so a project that configures on Linux does not fail later on Android.
+`ICON_DIRECTORY` adds the Android launcher icons, the embedded Windows icon, or the Linux desktop entry. Its companion arguments are validated on every platform, so a project that configures on Linux does not fail later on Android.
 
 ### Running desktop executables from the build tree
 
@@ -57,30 +45,13 @@ bridge_stage_runtime(
 )
 ```
 
-`bridge_stage_runtime()` makes an executable runnable from the build tree. On
-Windows it stages DLLs as `bridge_stage_win32_runtime()` does. It stages the
-asset directory's contents beside the executable and the icon directory as
-`icons/` beside it, the same layout `bridge_install_linux_desktop_application()`
-installs. Unchanged files are not rewritten, and a file removed from a source
-directory is removed from the staged copy on the next build. Other files beside
-the executable, including the executable itself, are never touched. `bridge_add_sdl_application()` calls it for desktop executables, and
-other tools can call it directly; with no directories it stages only what the
-platform needs, which on Linux is nothing.
+`bridge_stage_runtime()` makes an executable runnable from the build tree. On Windows it stages DLLs as `bridge_stage_win32_runtime()` does. It stages the asset directory's contents beside the executable and the icon directory as `icons/` beside it, the same layout `bridge_install_linux_desktop_application()` installs. Unchanged files are not rewritten, and a file removed from a source directory is removed from the staged copy on the next build. Other files beside the executable, including the executable itself, are never touched. `bridge_add_sdl_application()` calls it for desktop executables, and other tools can call it directly; with no directories it stages only what the platform needs, which on Linux is nothing.
 
-Executables that share an output directory share one staging target, named
-`<first executable>_runtime_assets`, so the build never copies into one
-directory concurrently. Every executable in the directory depends on it, and it
-stages everything any of them requested, so a tool that asks only for assets
-still finds the icons another program staged. Each place in the directory (the
-directory itself, and `icons/`) is filled from one source directory; asking for
-a different source for the same place is a configuration error.
+Executables that share an output directory share one staging target, named `<first executable>_runtime_assets`, so the build never copies into one directory concurrently. Every executable in the directory depends on it, and it stages everything any of them requested, so a tool that asks only for assets still finds the icons another program staged. Each place in the directory (the directory itself, and `icons/`) is filled from one source directory; asking for a different source for the same place is a configuration error.
 
 ### Run targets
 
-`bridge_add_run_target(TARGET game_run APPLICATION_TARGET game)` adds a target
-that builds an application and starts it: an APK through Bridge's Android
-application runner, a Windows executable through its Wine runner, or a host
-executable directly. Cross-compiling for any other system is an error.
+`bridge_add_run_target(TARGET game_run APPLICATION_TARGET game)` adds a target that builds an application and starts it: an APK through Bridge's Android application runner, a Windows executable through its Wine runner, or a host executable directly. Cross-compiling for any other system is an error.
 
 ## Win32 prototype
 
@@ -88,14 +59,9 @@ Bridge's Win32 profile cross-compiles with LLVM-MinGW and executes target progra
 
 On Wayland hosts, the Wine runner checks `WAYLAND_DISPLAY` and its Unix socket. When the socket exists, Bridge unsets `DISPLAY` for all Wine child processes, including startup, so Wine can use its native Wayland driver. On X11-only hosts, `DISPLAY` is preserved. If Wayland is advertised but its socket is unavailable, Bridge reports the problem and keeps X11 when available. Once Wayland is selected, a Wine failure is reported without silently retrying X11. Bridge does not modify the Wine registry or the calling shell's environment.
 
-A project using Bridge can include `external/bridge/cmake/BridgePresets.json` from its `CMakePresets.json`. Bridge's preset file includes Canon's presets and adds `win32-debug`, `win32-release`, `win32-asan`, `win32-tidy`, and `win32-coverage` with matching build, test, and workflow presets.
-Preset composition reads Canon from `external/canon` in the consuming source tree, so Bridge and the consumer use the same Canon preset policy.
+A project using Bridge can include `external/bridge/cmake/BridgePresets.json` from its `CMakePresets.json`. Bridge's preset file includes Canon's presets and adds `win32-debug`, `win32-release`, `win32-asan`, `win32-tidy`, and `win32-coverage` with matching build, test, and workflow presets. Preset composition reads Canon from `external/canon` in the consuming source tree, so Bridge and the consumer use the same Canon preset policy.
 
-Bridge also exposes a consumer-facing Win32 run target, parallel to its Android
-application run target. The run target depends on the consumer's executable,
-invokes the same Wine runner used by Bridge tests, and preserves Wine's display
-selection and LLVM-MinGW runtime configuration. Cross-compilation still works
-without Wine installed; invoking the run target then fails explicitly.
+Bridge also exposes a consumer-facing Win32 run target, parallel to its Android application run target. The run target depends on the consumer's executable, invokes the same Wine runner used by Bridge tests, and preserves Wine's display selection and LLVM-MinGW runtime configuration. Cross-compilation still works without Wine installed; invoking the run target then fails explicitly.
 
 ```cmake
 include(external/bridge/cmake/BridgeWin32Run.cmake)
@@ -111,25 +77,16 @@ Build and run with one command:
 cmake --build --preset win32-debug --target game_run
 ```
 
-The target is intended for IDE and developer workflows, not for CTest. CMake
-Tools does not treat CMake custom build targets as debugger launch targets;
-IDEs can invoke the build target through their task integration.
+The target is intended for IDE and developer workflows, not for CTest. CMake Tools does not treat CMake custom build targets as debugger launch targets; IDEs can invoke the build target through their task integration.
 
-Windows executables also need their DLL dependencies in the build tree. Bridge
-provides a separate staging API that copies CMake-managed runtime DLLs and,
-for recognized llvm-mingw C++ compilers, `libc++.dll` and `libunwind.dll` next
-to the executable after it links:
+Windows executables also need their DLL dependencies in the build tree. Bridge provides a separate staging API that copies CMake-managed runtime DLLs and, for recognized llvm-mingw C++ compilers, `libc++.dll` and `libunwind.dll` next to the executable after it links:
 
 ```cmake
 include(external/bridge/cmake/BridgeWin32Runtime.cmake)
 bridge_stage_win32_runtime(TARGET game_exe)
 ```
 
-Call this from the CMake directory that defines `game_exe`, after creating the
-executable. The helper requires a Windows target and does not require Wine.
-For llvm-mingw it fails configuration if a required compiler DLL is missing.
-It covers build-tree execution, not a release package or arbitrary DLLs loaded
-at runtime outside the CMake dependency graph.
+Call this from the CMake directory that defines `game_exe`, after creating the executable. The helper requires a Windows target and does not require Wine. For llvm-mingw it fails configuration if a required compiler DLL is missing. It covers build-tree execution, not a release package or arbitrary DLLs loaded at runtime outside the CMake dependency graph.
 
 If LLVM-MinGW is installed in a nonstandard location, set the root explicitly when configuring:
 
