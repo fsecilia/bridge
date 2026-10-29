@@ -143,6 +143,25 @@ function(_bridge_android_xml_escape INPUT OUT_VALUE)
     set(${OUT_VALUE} "${_value}" PARENT_SCOPE)
 endfunction()
 
+# Sets OUT_ATTRIBUTE to the manifest's android:appCategory attribute for CATEGORY, or to nothing when CATEGORY is
+# empty. Fails, naming FUNCTION, when CATEGORY is not one of Android's application categories.
+function(_bridge_android_application_category_attribute FUNCTION CATEGORY OUT_ATTRIBUTE)
+    set(_categories accessibility audio game image maps news productivity social video)
+    if("${CATEGORY}" STREQUAL "")
+        set(${OUT_ATTRIBUTE} "" PARENT_SCOPE)
+        return()
+    endif()
+    if(NOT CATEGORY IN_LIST _categories)
+        list(JOIN _categories ", " _allowed)
+        message(
+            FATAL_ERROR
+            "${FUNCTION}(): APPLICATION_CATEGORY '${CATEGORY}' is not an Android application category; use one of: "
+            "${_allowed}"
+        )
+    endif()
+    set(${OUT_ATTRIBUTE} "android:appCategory=\"${CATEGORY}\"" PARENT_SCOPE)
+endfunction()
+
 function(_bridge_android_require_shared_target TARGET_NAME ROLE OUT_TARGET)
     if(NOT TARGET "${TARGET_NAME}")
         message(FATAL_ERROR "bridge_add_sdl_android_application(): ${ROLE} target '${TARGET_NAME}' does not exist")
@@ -183,6 +202,7 @@ function(bridge_add_sdl_android_application)
         ASSET_DIRECTORY
         ICON_DIRECTORY
         ADAPTIVE_ICON_BACKGROUND_COLOR
+        APPLICATION_CATEGORY
     )
     set(multi_value_args RUNTIME_TARGETS)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "${options}" "${one_value_args}" "${multi_value_args}")
@@ -408,6 +428,9 @@ function(bridge_add_sdl_android_application)
         endforeach()
     endif()
 
+    _bridge_android_application_category_attribute(
+        bridge_add_sdl_android_application "${ARG_APPLICATION_CATEGORY}" BRIDGE_ANDROID_APPLICATION_CATEGORY_ATTRIBUTE
+    )
     _bridge_android_xml_escape("${ARG_APPLICATION_NAME}" BRIDGE_ANDROID_APPLICATION_NAME)
     _bridge_android_xml_escape("${_version_name}" BRIDGE_ANDROID_VERSION_NAME)
     set(BRIDGE_ANDROID_APPLICATION_ID "${ARG_APPLICATION_ID}")

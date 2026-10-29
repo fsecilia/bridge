@@ -45,6 +45,16 @@ _bridge_add_script_test(
         "BRIDGE_ANDROID_MANIFEST_TEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/android-manifest-debuggable"
 )
 
+# Check every application category, and its absence, on the host.
+_bridge_add_script_test(
+    bridge.packaging.android-application-category-manifest
+    SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/android-application-category-manifest.cmake"
+    LABELS packaging android
+    DEFINITIONS
+        "BRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "BRIDGE_ANDROID_MANIFEST_TEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/android-manifest-category"
+)
+
 # Runner tests drive each runner script against fake adb or Wine executables,
 # so they run on any host. Each takes a test name and the mode its script runs.
 
@@ -370,6 +380,10 @@ endfunction()
 _bridge_add_configure_failure_test(
     icon-color
     "bridge_add_sdl_application(): ICON_DIRECTORY requires ADAPTIVE_ICON_BACKGROUND_COLOR"
+)
+_bridge_add_configure_failure_test(
+    application-category
+    "bridge_add_sdl_application(): APPLICATION_CATEGORY 'games' is not an Android application category; use one of: accessibility, audio, game, image, maps, news, productivity, social, video"
 )
 _bridge_add_configure_failure_test(
     main-static

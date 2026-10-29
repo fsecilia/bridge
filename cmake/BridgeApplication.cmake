@@ -178,7 +178,8 @@ endfunction()
 # TARGET, and adds RUN_TARGET to build and start it.
 #
 # On Android, TARGET packages MAIN_TARGET as an APK through bridge_add_sdl_android_application().
-# ALL, OUTPUT, VERSION_NAME, VERSION_CODE, MIN_API, and DEBUGGABLE apply only there.
+# ALL, OUTPUT, VERSION_NAME, VERSION_CODE, MIN_API, DEBUGGABLE, and APPLICATION_CATEGORY apply only there.
+# APPLICATION_CATEGORY is validated on every platform, so a typo fails on the host as well.
 # DEBUGGABLE is opt-in, including for optimized Release builds; never enable it implicitly.
 #
 # Elsewhere, TARGET is an executable built from LAUNCHER_SOURCES, a main() that
@@ -197,7 +198,7 @@ endfunction()
 #       LAUNCHER_SOURCES <source>... SDL_TARGET <target> SDL_SOURCE_DIR <dir>
 #       APPLICATION_ID <id> APPLICATION_NAME <name>
 #       [ALL] [DEBUGGABLE] [OUTPUT <apk>] [VERSION_NAME <name>] [VERSION_CODE <code>] [MIN_API <level>]
-#       [ASSET_DIRECTORY <dir>] [RUNTIME_TARGETS <library>...]
+#       [APPLICATION_CATEGORY <category>] [ASSET_DIRECTORY <dir>] [RUNTIME_TARGETS <library>...]
 #       [ICON_DIRECTORY <dir> ADAPTIVE_ICON_BACKGROUND_COLOR <color> [DESKTOP_CATEGORIES <categories>]])
 function(bridge_add_sdl_application)
     set(one_value_args
@@ -216,6 +217,7 @@ function(bridge_add_sdl_application)
         ICON_DIRECTORY
         ADAPTIVE_ICON_BACKGROUND_COLOR
         DESKTOP_CATEGORIES
+        APPLICATION_CATEGORY
     )
     cmake_parse_arguments(PARSE_ARGV 0 ARG "ALL;DEBUGGABLE" "${one_value_args}" "LAUNCHER_SOURCES;RUNTIME_TARGETS")
     _bridge_check_arguments(
@@ -231,6 +233,10 @@ function(bridge_add_sdl_application)
             "bridge_add_sdl_application(): ADAPTIVE_ICON_BACKGROUND_COLOR and DESKTOP_CATEGORIES require ICON_DIRECTORY"
         )
     endif()
+    # Only the APK uses the attribute; checking it here catches an invalid category on every platform.
+    _bridge_android_application_category_attribute(
+        bridge_add_sdl_application "${ARG_APPLICATION_CATEGORY}" _application_category_attribute
+    )
     foreach(_role IN ITEMS MAIN_TARGET SDL_TARGET)
         if(NOT TARGET "${ARG_${_role}}")
             message(FATAL_ERROR "bridge_add_sdl_application(): ${_role} '${ARG_${_role}}' does not exist")
@@ -254,7 +260,7 @@ function(bridge_add_sdl_application)
             list(APPEND _optional DEBUGGABLE)
         endif()
         foreach(_argument IN ITEMS OUTPUT VERSION_NAME VERSION_CODE MIN_API ASSET_DIRECTORY ICON_DIRECTORY
-                ADAPTIVE_ICON_BACKGROUND_COLOR)
+                ADAPTIVE_ICON_BACKGROUND_COLOR APPLICATION_CATEGORY)
             if(ARG_${_argument})
                 list(APPEND _optional "${_argument}" "${ARG_${_argument}}")
             endif()

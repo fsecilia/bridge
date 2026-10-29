@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Frank Secilia
+
+foreach(_required IN ITEMS BRIDGE_SOURCE_DIR BRIDGE_ANDROID_MANIFEST_TEST_DIRECTORY)
+    if(NOT DEFINED ${_required} OR "${${_required}}" STREQUAL "")
+        message(FATAL_ERROR "${_required} is required")
+    endif()
+endforeach()
+
+include("${BRIDGE_SOURCE_DIR}/cmake/BridgeAndroidPackaging.cmake")
+
+set(BRIDGE_ANDROID_APPLICATION_ID "com.example.category")
+set(BRIDGE_ANDROID_VERSION_CODE "1")
+set(BRIDGE_ANDROID_VERSION_NAME "1.0")
+set(BRIDGE_ANDROID_MIN_API "28")
+set(BRIDGE_ANDROID_TARGET_API "36")
+set(BRIDGE_ANDROID_APPLICATION_NAME "Category Check")
+set(BRIDGE_ANDROID_ICON_ATTRIBUTE "")
+set(BRIDGE_ANDROID_DEBUGGABLE "false")
+
+file(MAKE_DIRECTORY "${BRIDGE_ANDROID_MANIFEST_TEST_DIRECTORY}")
+foreach(_category IN ITEMS "" accessibility audio game image maps news productivity social video)
+    _bridge_android_application_category_attribute(
+        category-test "${_category}" BRIDGE_ANDROID_APPLICATION_CATEGORY_ATTRIBUTE
+    )
+    set(_name "${_category}")
+    if(_name STREQUAL "")
+        set(_name none)
+    endif()
+    set(_path "${BRIDGE_ANDROID_MANIFEST_TEST_DIRECTORY}/AndroidManifest-${_name}.xml")
+    configure_file("${BRIDGE_SOURCE_DIR}/cmake/BridgeAndroidManifest.xml.in" "${_path}" @ONLY)
+    file(READ "${_path}" _manifest)
+    string(REGEX MATCHALL "android:appCategory=\"[^\"]*\"" _declared "${_manifest}")
+    if(_category STREQUAL "")
+        if(NOT _declared STREQUAL "")
+            message(FATAL_ERROR "Android manifest declares a category when none was requested:\n${_manifest}")
+        endif()
+    elseif(NOT _declared STREQUAL "android:appCategory=\"${_category}\"")
+        message(FATAL_ERROR "Android manifest does not declare exactly appCategory=${_category}:\n${_manifest}")
+    endif()
+    string(REGEX MATCH "<application[^>]*>" _application "${_manifest}")
+    if(_category AND NOT _application MATCHES "android:appCategory")
+        message(FATAL_ERROR "Android manifest declares appCategory outside <application>:\n${_manifest}")
+    endif()
+    if(_manifest MATCHES "@[A-Za-z_]+@")
+        message(FATAL_ERROR "Android manifest has unsubstituted template variables:\n${_manifest}")
+    endif()
+endforeach()

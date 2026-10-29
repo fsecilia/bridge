@@ -29,7 +29,7 @@ bridge_add_sdl_application(
 )
 ```
 
-On Android, `game` is the APK packaging target and `game_run` installs and launches it. `ALL`, `OUTPUT`, `VERSION_NAME`, `VERSION_CODE`, and `MIN_API` apply only to the APK.
+On Android, `game` is the APK packaging target and `game_run` installs and launches it. `ALL`, `OUTPUT`, `VERSION_NAME`, `VERSION_CODE`, `MIN_API`, and `APPLICATION_CATEGORY` apply only to the APK.
 
 Elsewhere, `game` is an executable built from `LAUNCHER_SOURCES`, a `main()` that forwards to the library, linked with `MAIN_TARGET` and `SDL_TARGET`. It receives Canon's build policy, so Canon must be loaded first. `game_run` runs it under Bridge's Wine runner on Windows and directly on the host otherwise. `MAIN_TARGET` must be a shared library on every platform, because Android loads it as `libmain.so`.
 
@@ -146,6 +146,8 @@ bridge_add_sdl_android_application(
 `ASSET_DIRECTORY` copies the directory contents into the APK's `assets/` tree. `RUNTIME_TARGETS` can name additional shared-library targets that must ship beside `libmain.so` and `libSDL3.so`. Bridge rejects duplicate packaged targets and fails if two runtime libraries would overwrite the same staged library name. The packaging target exposes its APK path through the `BRIDGE_ANDROID_APK` target property.
 
 The packaging path uses a build-local debug signing key. **Debug signing does not make an APK debuggable.** The optional `DEBUGGABLE` flag to `bridge_add_sdl_android_application()` (also forwarded by `bridge_add_sdl_application()` on Android) sets `android:debuggable="true"`. Without it, Bridge writes `android:debuggable="false"` explicitly, even in a CMake Debug build. Use this flag only for development and test APKs that need `adb shell run-as` to retrieve app-owned files. It is independent of optimization or build type, so an optimized Release benchmark can still use `run-as` without making shipping APKs debuggable. Production signing, store packaging, and multi-ABI distribution remain separate concerns.
+
+The optional `APPLICATION_CATEGORY` argument to `bridge_add_sdl_android_application()` (also forwarded by `bridge_add_sdl_application()` on Android) sets the manifest's `android:appCategory`. It must be one of Android's categories: `accessibility`, `audio`, `game`, `image`, `maps`, `news`, `productivity`, `social`, or `video`. Without it, the manifest declares no category. `bridge_add_sdl_application()` rejects an invalid category on every platform. A game should pass `game`: for apps targeting API 36 or later, Android ignores orientation, resizability, and aspect-ratio restrictions on displays at least 600dp wide, such as tablets and unfolded foldables, and games are exempt.
 
 ### Android application runner
 
