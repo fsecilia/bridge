@@ -3,6 +3,28 @@
 
 include_guard(GLOBAL)
 
+# Resolves the LLVM-MinGW compiler DLLs required by linked C++ applications.
+# The build-tree staging and installation paths must deploy identical files.
+function(_bridge_win32_compiler_runtime_dlls OUT_DLLS)
+    set(_compiler_runtime_dlls "")
+    get_filename_component(_compiler_name "${CMAKE_CXX_COMPILER}" NAME)
+    if(_compiler_name MATCHES "^([A-Za-z0-9_]+-w64-mingw32)-clang\\+\\+$")
+        set(_target_triplet "${CMAKE_MATCH_1}")
+        cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH _compiler_bin)
+        cmake_path(GET _compiler_bin PARENT_PATH _toolchain_root)
+
+        foreach(_dll IN ITEMS libc++.dll libunwind.dll)
+            set(_path "${_toolchain_root}/${_target_triplet}/bin/${_dll}")
+            if(NOT EXISTS "${_path}")
+                message(FATAL_ERROR "LLVM-MinGW runtime DLL is missing: ${_path}")
+            endif()
+            list(APPEND _compiler_runtime_dlls "${_path}")
+        endforeach()
+    endif()
+
+    set(${OUT_DLLS} "${_compiler_runtime_dlls}" PARENT_SCOPE)
+endfunction()
+
 # Stages a Windows executable's CMake-managed DLLs and recognized llvm-mingw
 # compiler runtimes beside it for build-tree execution. Call from the directory
 # that created the executable, after add_executable(). Wine is not required.
@@ -30,21 +52,7 @@ function(bridge_stage_win32_runtime)
         message(FATAL_ERROR "bridge_stage_win32_runtime(): TARGET '${ARG_TARGET}' must be an executable")
     endif()
 
-    set(_compiler_runtime_dlls "")
-    get_filename_component(_compiler_name "${CMAKE_CXX_COMPILER}" NAME)
-    if(_compiler_name MATCHES "^([A-Za-z0-9_]+-w64-mingw32)-clang\\+\\+$")
-        set(_target_triplet "${CMAKE_MATCH_1}")
-        cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH _compiler_bin)
-        cmake_path(GET _compiler_bin PARENT_PATH _toolchain_root)
-
-        foreach(_dll IN ITEMS libc++.dll libunwind.dll)
-            set(_path "${_toolchain_root}/${_target_triplet}/bin/${_dll}")
-            if(NOT EXISTS "${_path}")
-                message(FATAL_ERROR "LLVM-MinGW runtime DLL is missing: ${_path}")
-            endif()
-            list(APPEND _compiler_runtime_dlls "${_path}")
-        endforeach()
-    endif()
+    _bridge_win32_compiler_runtime_dlls(_compiler_runtime_dlls)
 
     add_custom_command(
         TARGET "${ARG_TARGET}"

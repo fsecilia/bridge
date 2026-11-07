@@ -187,6 +187,7 @@ endif()
 
 add_subdirectory(canon)
 add_subdirectory(native-test)
+add_subdirectory(win32-install)
 
 _bridge_add_win32_runner_test(output output)
 _bridge_add_win32_runner_test(exit-status exit)

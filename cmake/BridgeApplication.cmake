@@ -8,6 +8,7 @@ include_guard(GLOBAL)
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeAndroidPackaging.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeAndroidRun.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeApplicationIcons.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/BridgeWin32Install.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeWin32Run.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeWin32Runtime.cmake")
 
