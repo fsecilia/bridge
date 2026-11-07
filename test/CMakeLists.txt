@@ -215,6 +215,22 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
     endforeach()
 endif()
 
+# Exercise isolated Wine validation sessions without requiring Wine to be installed.
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
+    foreach(_mode IN ITEMS success keep failure wrong-driver no-wayland)
+        _bridge_add_script_test(
+            "bridge.validation.wine.${_mode}"
+            SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/wine-validation/check.cmake"
+            LABELS validation wine
+            DEFINITIONS
+                "BRIDGE_WINE_VALIDATION_SCRIPT=${PROJECT_SOURCE_DIR}/runner/bridge-wine-validation.sh"
+                "BRIDGE_WINE_VALIDATION_FIXTURE=$<TARGET_FILE:bridge_win32_wayland_socket_fixture>"
+                "BRIDGE_WINE_VALIDATION_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/wine-validation"
+                "BRIDGE_WINE_VALIDATION_CASE=${_mode}"
+        )
+    endforeach()
+endif()
+
 _bridge_add_android_runner_test(output output)
 _bridge_add_android_runner_test(arguments arguments)
 _bridge_add_android_runner_test(exit-status exit)

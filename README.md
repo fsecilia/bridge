@@ -57,6 +57,18 @@ Executables that share an output directory share one staging target, named `<fir
 
 Bridge's Windows profile cross-compiles with LLVM-MinGW on Linux or macOS. Wine is optional and is needed only for executing Windows programs and tests. If no Wine backend is configured, requesting execution fails with a clear error; compilation, installation, and packaging remain available. A configured Windows CTest executable stays registered and reports the missing backend when run. When present, Wine is invoked through a POSIX runner. A small POSIX `sh` runner keeps Wine's background processes detached from captured test output so CTest does not wait for Wine's idle shutdown after each executable. The toolchain first honors `BRIDGE_LLVM_MINGW_ROOT`, then the environment variable of the same name, then searches a target-prefixed LLVM-MinGW compiler already on `PATH` and `/opt/llvm-mingw`. Bridge also adds LLVM-MinGW's target runtime DLL directory to Wine's executable search path.
 
+### Isolated Wine validation sessions
+
+For tests of installed Windows distributions, Bridge provides `runner/bridge-wine-validation.sh`. It wraps one test command, which can perform multiple installation, execution, reinstallation, and uninstallation steps against the same fresh Wine prefix. Unlike the regular build-tree runner, it requires a working Wayland socket, configures `HKCU\Software\Wine\Drivers` with `Graphics=wayland`, verifies that setting, and unsets `DISPLAY`. It never uses the developer's default Wine prefix.
+
+Pass an absolute validation directory and a command that performs the application-specific tests:
+
+```sh
+runner/bridge-wine-validation.sh --output "$PWD/build/validation/wine" -- /path/to/package-tests
+```
+
+Each session creates a unique prefix under `prefixes/` and keeps its output under `logs/` and `results/`. It stops that prefix's Wine server before cleanup. A successful run removes the prefix unless `--keep-prefix` is given; a failure preserves the prefix for investigation and returns a nonzero status. Logs and results are retained in both cases. Stopped, old prefixes can be removed by deleting the `prefixes/` directory without deleting logs or test results. This runner provides the session lifecycle only; the consumer owns package assertions and chooses when to invoke them.
+
 On Wayland hosts, the Wine runner checks `WAYLAND_DISPLAY` and its Unix socket. When the socket exists, Bridge unsets `DISPLAY` for all Wine child processes, including startup, so Wine can use its native Wayland driver. On X11-only hosts, `DISPLAY` is preserved. If Wayland is advertised but its socket is unavailable, Bridge reports the problem and keeps X11 when available. Once Wayland is selected, a Wine failure is reported without silently retrying X11. Bridge does not modify the Wine registry or the calling shell's environment.
 
 A project using Bridge can include `external/bridge/cmake/BridgePresets.json` from its `CMakePresets.json`. Bridge's preset file includes Canon's presets and adds `win32-debug`, `win32-release`, `win32-asan`, `win32-tidy`, and `win32-coverage` with matching build, test, and workflow presets. Preset composition reads Canon from `external/canon` in the consuming source tree, so Bridge and the consumer use the same Canon preset policy.
