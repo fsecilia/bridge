@@ -96,9 +96,34 @@ cmake --preset win32-debug -DBRIDGE_LLVM_MINGW_ROOT=/path/to/llvm-mingw
 
 Machine-local paths do not need to be committed or added globally to `PATH`.
 
-### Linux host setup
+### Windows build prerequisites on Linux
 
-The initial scripted setup installs the host compiler and packaging prerequisites without requiring Wine. Run `scripts/setup-windows-build-deps.sh` from Bridge's root, or add `--with-wine` when Windows execution and tests are wanted. The entry point detects the Linux distribution using `/etc/os-release` (or `/usr/lib/os-release`) and dispatches to a distribution-specific implementation. Currently only Arch and compatible distributions are supported; other distributions fail with an explicit diagnostic. For controlled environments and tests, `BRIDGE_OS_RELEASE_FILE` can explicitly override the metadata path; the script announces the override and fails if that file cannot be read. The Arch implementation performs a full `pacman -Syu` rather than risking a partial upgrade, requests sudo only for the package-manager operation, and validates the resulting tools. SDL and application-specific target dependencies remain separate cross-build inputs; this script does not claim to prepare a complete Tinderbox Windows build yet.
+Windows cross-compilation needs CMake, Ninja, Python, and LLVM-MinGW. ZIP packaging needs no additional host tool. NSIS installers additionally need `makensis`; Wine is optional and is used only to execute Windows applications and tests. SDL and other Windows-target application dependencies are resolved separately by the consuming project through Canon. Bridge checks for the toolchain when configuring and reports missing requirements for requested build and execution operations.
+
+#### Arch and Arch-based distributions
+
+Install the host tools from the configured pacman repositories, updating the system as part of the operation to avoid a partial upgrade:
+
+```sh
+sudo pacman -Syu --needed cmake ninja python
+```
+
+On stock Arch, `llvm-mingw` and `nsis` are available from the AUR rather than the official repositories. Install `llvm-mingw` using your preferred AUR workflow, and install `nsis` only if you want NSIS installers. For example, if you use `paru`:
+
+```sh
+paru -S llvm-mingw
+paru -S nsis  # Only for NSIS installer packaging.
+```
+
+Arch derivatives may provide either package through their configured repositories instead. No particular AUR helper is required by Bridge.
+
+For optional Windows execution and tests under Wine, install it separately:
+
+```sh
+sudo pacman -S --needed wine
+```
+
+Check the Windows compiler with `x86_64-w64-mingw32-clang++ --version`. For NSIS packaging, check `makensis -VERSION`. These checks do not verify that application-specific Windows libraries have been built; those still need to be available to the consuming project. On other Linux distributions, install the equivalent tools using the distribution's package manager before configuring Bridge.
 
 ### Windows installation components
 

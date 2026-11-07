@@ -64,25 +64,6 @@ _bridge_add_script_test(
         "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/win32-environment"
 )
 
-# Keep host package-manager tests isolated from real sudo and pacman.
-if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
-    find_program(_bridge_setup_bash NAMES bash REQUIRED)
-    foreach(_scenario IN ITEMS
-        arch derivative cachyos wine unsupported lookalike missing-release
-        nonlinux missing-pacman missing-tool bad-argument help
-    )
-        add_test(
-            NAME "bridge.setup.windows.${_scenario}"
-            COMMAND "${_bridge_setup_bash}"
-                "${CMAKE_CURRENT_SOURCE_DIR}/setup-windows-build-deps.sh"
-                "${PROJECT_SOURCE_DIR}/scripts/setup-windows-build-deps.sh"
-                "${_scenario}"
-                "${CMAKE_CURRENT_BINARY_DIR}/setup-windows-build-deps-${_scenario}"
-        )
-        set_tests_properties("bridge.setup.windows.${_scenario}" PROPERTIES LABELS "setup windows linux")
-    endforeach()
-endif()
-
 # Runner tests drive each runner script against fake adb or Wine executables,
 # so they run on any host. Each takes a test name and the mode its script runs.
 
