@@ -100,3 +100,52 @@ if("${_result}" STREQUAL "0" OR NOT "${_stdout}${_stderr}" MATCHES "does not exi
     message(FATAL_ERROR "Missing distribution artifact was not rejected:
 ${_stdout}${_stderr}")
 endif()
+
+# Validation is collected as evidence, not authored by the app into the final
+# manifest. Missing results and failed validators must not publish a manifest.
+set(_validator "${BRIDGE_TEST_BINARY_DIR}/validate.sh")
+file(WRITE "${_validator}" [=[#!/usr/bin/env bash
+set -euo pipefail
+while (($#)); do
+    case "$1" in
+        --manifest) manifest=$2; shift 2 ;;
+        --report) report=$2; shift 2 ;;
+        --mode) mode=$2; shift 2 ;;
+        *) exit 12 ;;
+    esac
+done
+[[ -f "$manifest" ]] || exit 13
+case "$mode" in
+    success) echo '{"schema_version":1,"artifacts":{"windows-x64/example.zip":{"package":"passed","loader":"not_run"}}}' > "$report" ;;
+    missing) echo '{"schema_version":1,"artifacts":{}}' > "$report" ;;
+    wrong-state) echo '{"schema_version":1,"artifacts":{"windows-x64/example.zip":{"package":"unknown"}}}' > "$report" ;;
+    fail) exit 27 ;;
+    *) exit 14 ;;
+esac
+]=])
+file(CHMOD "${_validator}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+foreach(_mode IN ITEMS success missing wrong-state fail)
+    _distribution_run("${CMAKE_COMMAND}" -S "${_fixture}" -B "${_coordinator}" -G Ninja
+        "-DBRIDGE_SOURCE_DIR=${BRIDGE_SOURCE_DIR}" -DFIXTURE_ROLE=coordinator
+        "-DFIXTURE_PRODUCER_DIR=${_producer}" "-DFIXTURE_OUTPUT_DIR=${_collected}"
+        "-DFIXTURE_VALIDATOR=${_validator}" "-DFIXTURE_VALIDATOR_MODE=${_mode}"
+        "-DFIXTURE_EXPECTED_SOURCE=${_fixture}")
+    execute_process(COMMAND "${CMAKE_COMMAND}" --build "${_coordinator}" --target fixture_distribution
+        RESULT_VARIABLE _result OUTPUT_VARIABLE _stdout ERROR_VARIABLE _stderr)
+    if(_mode STREQUAL "success")
+        if(NOT "${_result}" STREQUAL "0")
+            message(FATAL_ERROR "Validated collection failed: ${_stdout} ${_stderr}")
+        endif()
+        file(READ "${_collected}/manifest.json" _validated)
+        string(JSON _schema GET "${_validated}" schema_version)
+        string(JSON _package GET "${_validated}" artifacts 0 validation package)
+        string(JSON _loader GET "${_validated}" artifacts 0 validation loader)
+        if(NOT _schema EQUAL 2 OR NOT _package STREQUAL "passed" OR NOT _loader STREQUAL "not_run")
+            message(FATAL_ERROR "Incorrect validated manifest: ${_validated}")
+        endif()
+    else()
+        if("${_result}" STREQUAL "0" OR EXISTS "${_collected}/manifest.json")
+            message(FATAL_ERROR "${_mode}: validation failure published a manifest: ${_stdout} ${_stderr}")
+        endif()
+    endif()
+endforeach()

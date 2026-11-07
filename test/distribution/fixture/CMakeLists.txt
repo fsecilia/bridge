@@ -25,11 +25,17 @@ elseif(FIXTURE_ROLE STREQUAL "coordinator")
     if(NOT DEFINED FIXTURE_EXPECTED_SOURCE)
         set(FIXTURE_EXPECTED_SOURCE "${PROJECT_SOURCE_DIR}")
     endif()
+    set(_validation)
+    if(FIXTURE_VALIDATOR)
+        list(APPEND _validation VALIDATOR "${FIXTURE_VALIDATOR}"
+            VALIDATION_ARGS --mode "${FIXTURE_VALIDATOR_MODE}")
+    endif()
     bridge_add_distribution_collection(
         TARGET fixture_distribution
         OUTPUT_DIRECTORY "${FIXTURE_OUTPUT_DIR}"
         EXPECTED_SOURCE "${FIXTURE_EXPECTED_SOURCE}"
         BUILD_TREES "${FIXTURE_PRODUCER_DIR}|fixture_distribution"
+        ${_validation}
     )
 else()
     message(FATAL_ERROR "Unknown fixture role '${FIXTURE_ROLE}'")
