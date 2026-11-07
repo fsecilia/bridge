@@ -1,6 +1,6 @@
 # Bridge
 
-Bridge makes supported foreign targets behave as locally as practical from a Linux development host.
+Bridge provides CMake-side build, execution, installation, and packaging helpers for applications targeting several operating systems. Linux is the current primary development host; Windows cross-compilation and packaging also support macOS hosts.
 
 ## Applications on every platform
 
@@ -53,9 +53,9 @@ Executables that share an output directory share one staging target, named `<fir
 
 `bridge_add_run_target(TARGET game_run APPLICATION_TARGET game)` adds a target that builds an application and starts it: an APK through Bridge's Android application runner, a Windows executable through its Wine runner, or a host executable directly. Cross-compiling for any other system is an error.
 
-## Win32 prototype
+## Windows cross-compilation
 
-Bridge's Win32 profile cross-compiles with LLVM-MinGW and executes target programs through Wine. A small POSIX `sh` runner keeps Wine's background processes detached from captured test output so CTest does not wait for Wine's idle shutdown after each executable. The toolchain first honors `BRIDGE_LLVM_MINGW_ROOT`, then the environment variable of the same name, then searches a target-prefixed LLVM-MinGW compiler already on `PATH` and `/opt/llvm-mingw`. Bridge also adds LLVM-MinGW's target runtime DLL directory to Wine's executable search path.
+Bridge's Windows profile cross-compiles with LLVM-MinGW on Linux or macOS. Wine is optional and is needed only for executing Windows programs and tests. If no Wine backend is configured, requesting execution fails with a clear error; compilation, installation, and packaging remain available. A configured Windows CTest executable stays registered and reports the missing backend when run. When present, Wine is invoked through a POSIX runner. A small POSIX `sh` runner keeps Wine's background processes detached from captured test output so CTest does not wait for Wine's idle shutdown after each executable. The toolchain first honors `BRIDGE_LLVM_MINGW_ROOT`, then the environment variable of the same name, then searches a target-prefixed LLVM-MinGW compiler already on `PATH` and `/opt/llvm-mingw`. Bridge also adds LLVM-MinGW's target runtime DLL directory to Wine's executable search path.
 
 On Wayland hosts, the Wine runner checks `WAYLAND_DISPLAY` and its Unix socket. When the socket exists, Bridge unsets `DISPLAY` for all Wine child processes, including startup, so Wine can use its native Wayland driver. On X11-only hosts, `DISPLAY` is preserved. If Wayland is advertised but its socket is unavailable, Bridge reports the problem and keeps X11 when available. Once Wayland is selected, a Wine failure is reported without silently retrying X11. Bridge does not modify the Wine registry or the calling shell's environment.
 
@@ -95,6 +95,36 @@ cmake --preset win32-debug -DBRIDGE_LLVM_MINGW_ROOT=/path/to/llvm-mingw
 ```
 
 Machine-local paths do not need to be committed or added globally to `PATH`.
+
+### CachyOS host setup
+
+The initial scripted setup installs the host compiler and packaging prerequisites without requiring Wine. Run `scripts/setup-cachyos-windows.sh` from Bridge's root, or add `--with-wine` when Windows execution and tests are wanted. The script intentionally performs a full `pacman -Syu` rather than risking a partial Arch-family upgrade. It requests sudo only for that package-manager operation, validates the resulting tools, and fails if the host is not CachyOS. SDL and application-specific target dependencies remain separate cross-build inputs; this script does not claim to prepare a complete Tinderbox Windows build yet.
+
+### Windows installation components
+
+Install a Windows executable, all DLLs discovered by CMake, explicitly listed shared runtime targets, compiler runtime DLLs, and asset directories through a single Bridge helper:
+
+```cmake
+include(external/bridge/cmake/BridgeWin32Install.cmake)
+bridge_install_win32_application(
+    TARGET game_exe
+    COMPONENT standalone
+    RUNTIME_TARGETS game_main SDL3::SDL3
+    ASSET_DIRECTORY "${CMAKE_BINARY_DIR}/game-runtime"
+    ICON_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/icons"
+)
+```
+
+The installed layout places the `.exe`, DLLs, and asset directory contents at the package root, with the icon tree under `icons/`. This keeps SDL title storage and window-icon loading consistent with build-tree execution. An explicit `RUNTIME_TARGETS` entry is important for libraries loaded dynamically, which CMake cannot discover from link dependencies alone. The helper accepts imported shared targets, including installed SDL packages. It uses the same LLVM-MinGW compiler DLL resolver as build-tree staging, and it does not require Wine or NSIS.
+
+Install one component for a staging directory, or let CPack execute the install step while creating a ZIP:
+
+```sh
+cmake --install build/win32-release --config Release --component standalone --prefix build/stage/windows
+cpack --config build/win32-release/CPackConfig.cmake -G ZIP -C Release -B build/dist
+```
+
+The consuming project owns component names, package identity, CPack options, and installer branding. CPack runs installation rules internally; do not stage the component separately before running CPack. Native Windows execution, image resources, and DLL loading still require target-platform validation before shipping.
 
 ## Android prototype
 
