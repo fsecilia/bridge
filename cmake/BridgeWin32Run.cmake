@@ -45,8 +45,12 @@ function(bridge_add_win32_run_target)
     endif()
 
     _bridge_find_win32_environment(
-        _available _root _cc _cxx _runtime_dir _wine _winepath _reason
+        _toolchain_available _root _cc _cxx _runtime_dir _unused_wine _unused_winepath _toolchain_reason
     )
+    if(NOT _toolchain_available)
+        message(FATAL_ERROR "bridge_add_win32_run_target(): ${_toolchain_reason}")
+    endif()
+    _bridge_find_win32_execution_environment(_available _wine _winepath _reason)
     if(_available)
         add_custom_target(
             "${ARG_TARGET}"

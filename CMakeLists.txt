@@ -28,11 +28,18 @@ _bridge_find_win32_environment(
     BRIDGE_WINEPATH_EXECUTABLE
     BRIDGE_WIN32_UNAVAILABLE_REASON
 )
-if (BRIDGE_WIN32_AVAILABLE)
-    message(STATUS "Bridge Win32 environment: available (${BRIDGE_LLVM_MINGW_DISCOVERED_ROOT})")
+if(BRIDGE_WIN32_AVAILABLE)
+    message(STATUS "Bridge Win32 toolchain: available (${BRIDGE_LLVM_MINGW_DISCOVERED_ROOT})")
 else()
-    message(STATUS "Bridge Win32 environment: unavailable")
+    message(STATUS "Bridge Win32 toolchain: unavailable")
     message(STATUS "  ${BRIDGE_WIN32_UNAVAILABLE_REASON}")
+endif()
+_bridge_find_win32_execution_environment(
+    BRIDGE_WIN32_EXECUTION_AVAILABLE BRIDGE_WINE_EXECUTABLE BRIDGE_WINEPATH_EXECUTABLE
+    BRIDGE_WIN32_EXECUTION_UNAVAILABLE_REASON
+)
+if(NOT BRIDGE_WIN32_EXECUTION_AVAILABLE)
+    message(STATUS "Bridge Win32 execution: unavailable (${BRIDGE_WIN32_EXECUTION_UNAVAILABLE_REASON})")
 endif()
 
 if (ANDROID)

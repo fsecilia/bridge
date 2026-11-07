@@ -55,6 +55,15 @@ _bridge_add_script_test(
         "BRIDGE_ANDROID_MANIFEST_TEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/android-manifest-category"
 )
 
+_bridge_add_script_test(
+    bridge.win32.environment.discovery
+    SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/win32-environment.cmake"
+    LABELS win32 environment
+    DEFINITIONS
+        "BRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/win32-environment"
+)
+
 # Runner tests drive each runner script against fake adb or Wine executables,
 # so they run on any host. Each takes a test name and the mode its script runs.
 

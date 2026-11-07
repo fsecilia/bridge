@@ -35,7 +35,14 @@ if (NOT EXISTS "${_bridge_win32_runner}")
     message(FATAL_ERROR "Bridge Win32 runner not found: ${_bridge_win32_runner}")
 endif()
 
-set(
-    CMAKE_CROSSCOMPILING_EMULATOR
-    "${_bridge_win32_runner};${_bridge_wine};${_bridge_winepath};${_bridge_runtime_dir}"
-)
+_bridge_find_win32_execution_environment(_bridge_can_execute _bridge_wine _bridge_winepath _bridge_execution_reason)
+if(_bridge_can_execute)
+    set(CMAKE_CROSSCOMPILING_EMULATOR
+        "${_bridge_win32_runner};${_bridge_wine};${_bridge_winepath};${_bridge_runtime_dir}")
+else()
+    # The build remains valid without Wine. CTest installs a failing execution
+    # wrapper so an explicitly requested test never passes or disappears silently.
+    set(_bridge_missing_execution "${CMAKE_CURRENT_LIST_DIR}/../runner/bridge-win32-unavailable.cmake")
+    set(CMAKE_CROSSCOMPILING_EMULATOR
+        "${CMAKE_COMMAND};-DBRIDGE_EXECUTION_REASON=${_bridge_execution_reason};-P;${_bridge_missing_execution}")
+endif()
