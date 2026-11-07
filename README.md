@@ -100,7 +100,7 @@ Machine-local paths do not need to be committed or added globally to `PATH`.
 
 Windows cross-compilation needs CMake, Ninja, Python, and LLVM-MinGW. ZIP packaging needs no additional host tool. NSIS installers additionally need `makensis`; Wine is optional and is used only to execute Windows applications and tests. SDL and other Windows-target application dependencies are resolved separately by the consuming project through Canon. Bridge checks for the toolchain when configuring and reports missing requirements for requested build and execution operations.
 
-#### Arch and Arch-based distributions
+#### Windows build prerequisites on Arch and Arch-based distributions
 
 Install the host tools from the configured pacman repositories, updating the system as part of the operation to avoid a partial upgrade:
 
@@ -133,7 +133,13 @@ paru -S nsis
 makensis -VERSION
 ```
 
-These GNU MinGW packages are required here to **build the AUR NSIS package**, not to cross-compile Tinderbox, which continues to use LLVM-MinGW. This workaround reflects the observed package state on that date; check whether the AUR or distribution packages have since fixed the dependency chain before installing a second compiler toolchain. A prebuilt `makensis` does not require rebuilding NSIS or its Windows stub dependencies.
+These GNU MinGW packages are required here to **build the AUR NSIS package**, not to cross-compile Tinderbox, which continues to use LLVM-MinGW. This workaround reflects the observed package state on that date; check whether the AUR or distribution packages have since fixed the dependency chain before installing a second compiler toolchain. An official, prebuilt `makensis` does not require rebuilding NSIS or its Windows stub dependencies.
+
+Once `makensis` is available, the intermediate compiler can be uninstalled:
+```sh
+pacman -Rs --print mingw-w64-gcc
+sudo pacman -Rns mingw-w64-gcc
+```
 
 For optional Windows execution and tests under Wine, install it separately:
 
