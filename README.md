@@ -108,14 +108,32 @@ Install the host tools from the configured pacman repositories, updating the sys
 sudo pacman -Syu --needed cmake ninja python
 ```
 
-On stock Arch, `llvm-mingw` and `nsis` are available from the AUR rather than the official repositories. Install `llvm-mingw` using your preferred AUR workflow, and install `nsis` only if you want NSIS installers. For example, if you use `paru`:
+On stock Arch, `llvm-mingw` and `nsis` are available from the AUR rather than the official repositories. Install LLVM-MinGW using your preferred AUR workflow; for example, with `paru`:
 
 ```sh
 paru -S llvm-mingw
-paru -S nsis  # Only for NSIS installer packaging.
 ```
 
 Arch derivatives may provide either package through their configured repositories instead. No particular AUR helper is required by Bridge.
+
+For **optional NSIS installer packaging**, install `nsis` using your distribution's packages or the AUR. As of November 7, 2026, building AUR `nsis` 3.13-2 on an Arch-based system with LLVM-MinGW 23.1.0 exposed a package-provider conflict: `llvm-mingw` satisfied pacman's GNU MinGW dependency names without supplying the GNU assembler expected by the `mingw-w64-zlib` build. Its `i686-w64-mingw32-gcc` invocation then used the native Linux assembler and failed on Windows COFF directives such as `.def` and `.scl`.
+
+Until the packaging dependencies are corrected, the verified workaround is to install the complete GNU MinGW toolchain components explicitly before building NSIS from the AUR:
+
+```sh
+sudo pacman -S --needed \
+    mingw-w64-gcc \
+    mingw-w64-binutils \
+    mingw-w64-headers \
+    mingw-w64-crt \
+    mingw-w64-winpthreads
+
+command -v i686-w64-mingw32-as
+paru -S nsis
+makensis -VERSION
+```
+
+These GNU MinGW packages are required here to **build the AUR NSIS package**, not to cross-compile Tinderbox, which continues to use LLVM-MinGW. This workaround reflects the observed package state on that date; check whether the AUR or distribution packages have since fixed the dependency chain before installing a second compiler toolchain. A prebuilt `makensis` does not require rebuilding NSIS or its Windows stub dependencies.
 
 For optional Windows execution and tests under Wine, install it separately:
 
