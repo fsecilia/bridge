@@ -96,9 +96,9 @@ cmake --preset win32-debug -DBRIDGE_LLVM_MINGW_ROOT=/path/to/llvm-mingw
 
 Machine-local paths do not need to be committed or added globally to `PATH`.
 
-### CachyOS host setup
+### Linux host setup
 
-The initial scripted setup installs the host compiler and packaging prerequisites without requiring Wine. Run `scripts/setup-cachyos-windows.sh` from Bridge's root, or add `--with-wine` when Windows execution and tests are wanted. The script intentionally performs a full `pacman -Syu` rather than risking a partial Arch-family upgrade. It requests sudo only for that package-manager operation, validates the resulting tools, and fails if the host is not CachyOS. SDL and application-specific target dependencies remain separate cross-build inputs; this script does not claim to prepare a complete Tinderbox Windows build yet.
+The initial scripted setup installs the host compiler and packaging prerequisites without requiring Wine. Run `scripts/setup-windows-build-deps.sh` from Bridge's root, or add `--with-wine` when Windows execution and tests are wanted. The entry point detects the Linux distribution using `/etc/os-release` (or `/usr/lib/os-release`) and dispatches to a distribution-specific implementation. Currently only Arch and compatible distributions are supported; other distributions fail with an explicit diagnostic. For controlled environments and tests, `BRIDGE_OS_RELEASE_FILE` can explicitly override the metadata path; the script announces the override and fails if that file cannot be read. The Arch implementation performs a full `pacman -Syu` rather than risking a partial upgrade, requests sudo only for the package-manager operation, and validates the resulting tools. SDL and application-specific target dependencies remain separate cross-build inputs; this script does not claim to prepare a complete Tinderbox Windows build yet.
 
 ### Windows installation components
 

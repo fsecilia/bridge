@@ -6,9 +6,9 @@ set -euo pipefail
 
 usage() {
     cat <<'HELP'
-Usage: scripts/setup-cachyos-windows.sh [--with-wine]
+Usage: scripts/setup-windows-build-deps.sh [--with-wine]
 
-Install CachyOS host tools for Windows cross-compilation and packaging.
+Install Arch host tools for Windows cross-compilation and packaging.
 Runs a full pacman system update to avoid partial upgrades. Requires sudo.
 Wine is optional and is installed only with --with-wine.
 This does not build target SDL or other application dependencies.
@@ -25,22 +25,12 @@ while (($# > 0)); do
     shift
 done
 
-if [[ ! -r /etc/os-release ]]; then
-    printf '%s\n' 'Cannot identify the host distribution (/etc/os-release is missing)' >&2
-    exit 1
-fi
-# shellcheck source=/dev/null
-source /etc/os-release
-if [[ "${ID:-}" != cachyos ]]; then
-    printf 'This setup script supports CachyOS, not %s\n' "${ID:-unknown}" >&2
-    exit 1
-fi
 if ! command -v pacman >/dev/null 2>&1 || ! command -v sudo >/dev/null 2>&1; then
-    printf '%s\n' 'CachyOS setup requires pacman and sudo' >&2
+    printf '%s\n' 'Arch setup requires pacman and sudo' >&2
     exit 1
 fi
 
-printf '%s\n' 'Updating CachyOS and installing Windows distribution tools...'
+printf '%s\n' 'Updating Arch and installing Windows distribution tools...'
 sudo pacman -Syu --needed "${packages[@]}"
 
 for tool in cmake ninja python x86_64-w64-mingw32-clang++ x86_64-w64-mingw32-windres makensis; do
