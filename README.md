@@ -175,6 +175,41 @@ cpack --config build/win32-release/CPackConfig.cmake -G ZIP -C Release -B build/
 
 The consuming project owns component names, package identity, CPack options, and installer branding. CPack runs installation rules internally; do not stage the component separately before running CPack. Native Windows execution, image resources, and DLL loading still require target-platform validation before shipping.
 
+### Distribution targets and collection
+
+Bridge supports a per-build-tree distribution target and a host-side collector through `cmake/BridgeDistribution.cmake`. The consuming project owns its CPack package names, selected distribution formats, and install components. Each selected packaging target must produce a specific file in the build tree's `dist/` directory.
+
+Register the per-tree target after the packaging targets:
+
+```cmake
+include(external/bridge/cmake/BridgeDistribution.cmake)
+bridge_add_distribution_target(
+    TARGET game_distribution
+    OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/dist"
+    PLATFORM windows-x64
+    VERSION "${PROJECT_VERSION}"
+    ARTIFACTS "windows-zip|game.zip" "windows-installer|game.exe"
+    DEPENDS game_zip game_installer
+)
+```
+
+The target verifies each named artifact and writes `dist/manifest.json` with its type, platform, version, relative path, SHA-256 checksum, and `validation: not_run`. `not_run` means that neither Wine nor native runtime tests have been executed as part of this packaging operation. Nothing searches the output directory for files left by previous releases.
+
+A separately configured host-native build tree may then coordinate one or more **other** build trees:
+
+```cmake
+bridge_add_distribution_collection(
+    TARGET game_distribution
+    OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build/dist"
+    EXPECTED_SOURCE "${PROJECT_SOURCE_DIR}"
+    BUILD_TREES "${PROJECT_SOURCE_DIR}/build/win32-release|game_distribution"
+)
+```
+
+The collector calls `cmake --build` for each listed tree and copies only the manifest entries after verifying their checksums. It records platform-specific paths such as `windows-x64/game.zip` in `build/dist/manifest.json`. Each build tree must already be configured; the collector checks the configured source directory (not a Git revision) and refuses to invoke itself recursively. If a requested tree is not configured, a required target fails, or any artifact is missing or corrupt, the collection fails instead of silently skipping it. Bridge does not configure other toolchains, install their prerequisites, or depend on Wine to coordinate distributions.
+
+The coordinator is a build target, not an `ALL` dependency; ordinary application builds require none of the optional distribution environments. Each distribution still requires release validation on its native target platform before shipping.
+
 ## Android prototype
 
 Bridge's Android profiles use the NDK's supported CMake toolchain file and deploy headless executables through `adb`. The Android toolchain is intentionally limited to target establishment: NDK, ABI, minimum API, and the NDK toolchain itself. Set `CMAKE_ANDROID_NDK` or `ANDROID_NDK_ROOT` to select the NDK; Bridge does not search installed NDK versions.

@@ -417,3 +417,13 @@ if(WIN32)
         TARGET_PLATFORM
     )
 endif()
+
+_bridge_add_script_test(
+    bridge.distribution.collection
+    SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/distribution/check.cmake"
+    LABELS distribution packaging
+    TIMEOUT 120
+    DEFINITIONS
+        "BRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/distribution-lifecycle"
+)
