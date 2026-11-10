@@ -5,13 +5,14 @@
 set -euo pipefail
 
 usage() {
-    printf 'usage: %s --image <OCI image@sha256:digest> --workspace <absolute-directory> [--dependency-prefix <absolute-directory>] -- <command> [args...]\n' "$0" >&2
+    printf 'usage: %s --image <OCI image@sha256:digest> --workspace <absolute-directory> [--dependency-prefix <absolute-directory>] (--shell | -- <command> [args...])\n' "$0" >&2
     exit 2
 }
 
 image=''
 workspace=''
 dependency_prefix=''
+mode=command
 while (($#)); do
     case "$1" in
         --image|--workspace|--dependency-prefix)
@@ -23,6 +24,11 @@ while (($#)); do
             esac
             shift 2
             ;;
+        --shell)
+            mode=shell
+            shift
+            break
+            ;;
         --)
             shift
             break
@@ -31,7 +37,12 @@ while (($#)); do
     esac
 done
 
-[[ -n "$image" && -n "$workspace" && $# -gt 0 ]] || usage
+[[ -n "$image" && -n "$workspace" ]] || usage
+if [[ "$mode" == shell ]]; then
+    (($# == 0)) || usage
+else
+    (($# > 0)) || usage
+fi
 # A floating image tag can change the libc/compiler baseline between builds.
 if [[ ! "$image" =~ @sha256:[[:xdigit:]]{64}$ ]]; then
     printf 'error: Steam Runtime SDK image must be pinned with an OCI sha256 digest: %s\n' "$image" >&2
@@ -72,4 +83,8 @@ if [[ -n "$dependency_prefix" ]]; then
     )
 fi
 
+if [[ "$mode" == shell ]]; then
+    options+=(--interactive --tty)
+    exec "$podman" "${options[@]}" "$image" /bin/bash
+fi
 exec "$podman" "${options[@]}" "$image" "$@"

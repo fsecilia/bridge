@@ -12,6 +12,7 @@
     {
       "name": "bridge-steam-linux",
       "hidden": true,
+      "toolchainFile": "${fileDir}/../toolchains/bridge-steamrt4.cmake",
       "cacheVariables": {
         "BRIDGE_SDL_PROVIDER": "installed",
         "BRIDGE_SDL_RUNTIME": "system"

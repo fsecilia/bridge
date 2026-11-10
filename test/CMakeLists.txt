@@ -75,7 +75,7 @@ _bridge_add_script_test(
 )
 
 # The Steam Runtime SDK executor has no Podman dependency during its isolated argument and failure-contract tests.
-foreach(_case IN ITEMS arguments floating-image missing-podman podman-error prefix-inside-workspace prefix-contains-workspace)
+foreach(_case IN ITEMS arguments shell floating-image missing-podman podman-error prefix-inside-workspace prefix-contains-workspace)
     _bridge_add_script_test(
         "bridge.runner.steamrt4.${_case}"
         SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/steamrt4-sdk/check.cmake"
@@ -83,6 +83,32 @@ foreach(_case IN ITEMS arguments floating-image missing-podman podman-error pref
         DEFINITIONS
             "BRIDGE_STEAMRT4_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-steamrt4-sdk.sh"
             "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/steamrt4-${_case}"
+            "BRIDGE_STEAMRT4_CASE=${_case}"
+    )
+endforeach()
+
+# The developer-facing launcher reads environment configuration and delegates to the same Podman runner.
+foreach(_case IN ITEMS command shell prefix missing-image podman-error)
+    _bridge_add_script_test(
+        "bridge.runner.steamrt4-launcher.${_case}"
+        SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/steamrt4-sdk/check-launcher.cmake"
+        LABELS runner steamrt4
+        DEFINITIONS
+            "BRIDGE_STEAMRT4_LAUNCHER=${PROJECT_SOURCE_DIR}/runner/bridge-steamrt4.sh"
+            "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/steamrt4-launcher-${_case}"
+            "BRIDGE_STEAMRT4_CASE=${_case}"
+    )
+endforeach()
+
+# These probe the published os-release contract without needing an SDK image or a working Podman installation.
+foreach(_case IN ITEMS sdk host runtime wrong-version missing-variant missing-file)
+    _bridge_add_script_test(
+        "bridge.steamrt4.sdk-identity.${_case}"
+        SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/steamrt4-sdk/check-sdk.cmake"
+        LABELS steamrt4 configure
+        DEFINITIONS
+            "BRIDGE_STEAMRT4_MODULE=${PROJECT_SOURCE_DIR}/cmake/BridgeSteamRT4.cmake"
+            "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/steamrt4-sdk-${_case}"
             "BRIDGE_STEAMRT4_CASE=${_case}"
     )
 endforeach()

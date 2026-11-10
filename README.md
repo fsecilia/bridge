@@ -226,21 +226,28 @@ The coordinator is a build target, not an `ALL` dependency; ordinary application
 
 ## Steam Linux Runtime SDK execution (opt-in)
 
-For native Steam games, use Valve's official [Steam Linux Runtime 4 SDK](https://gitlab.steamos.cloud/steamrt/steamrt4/sdk) to build and test with its compiler and library baseline, rather than compiling against the Linux host. `runner/bridge-steamrt4-sdk.sh` executes a supplied command inside a rootless Podman container, sharing the project workspace at its existing absolute path. It is independent of ordinary native, Windows, and Android builds.
+Build native Steam games in Valve's official [Steam Linux Runtime 4 SDK](https://gitlab.steamos.cloud/steamrt/steamrt4/sdk) instead of compiling against the host distribution. Bridge supplies `steam-gcc-debug` and `steam-gcc-release` presets. These presets require the SDK's `/etc/os-release` identity (`ID=steamrt`, `VERSION_ID=4`, `VARIANT=SDK`) and reject host configuration. They use the SDK-installed SDL and leave SDL out of the Linux installation. Ordinary Linux builds still default to vendored-first SDL resolution and bundle SDL.
+
+Set `BRIDGE_STEAMRT4_SDK_IMAGE` to the digest-pinned official SDK OCI image and start the development shell from the application's source root:
 
 ```sh
-runner/bridge-steamrt4-sdk.sh \
-    --image 'registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk@sha256:<verified-digest>' \
-    --workspace "$PWD" -- cmake --version
+export BRIDGE_STEAMRT4_SDK_IMAGE='registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk@sha256:<verified-digest>'
+./external/bridge/runner/bridge-steamrt4.sh
 ```
 
-Bridge provides `steam-gcc-debug` and `steam-gcc-release` presets by composing the corresponding Canon GCC presets with `bridge-steam-linux`. This mixin selects the installed SDL provider and a system-provided SDL runtime, so applications link to the SDK's SDL without bundling it in Linux installations. Use the Steam presets inside the SDK, not on an arbitrary host distribution. Normal Linux builds use `auto` and bundle SDL; Windows and Android profiles require vendored SDL. The provider and runtime delivery policies are independent: installed SDL can also be bundled by choosing `BRIDGE_SDL_RUNTIME=bundle`.
+The image value above is a template, not a runnable digest. The launcher requires rootless Podman and starts an interactive Bash shell in the SDK with the current workspace mounted at its original absolute path. When used from Bridge itself, run `./runner/bridge-steamrt4.sh` instead. Inside the SDK, run ordinary CMake operations independently:
 
-The image must be pinned to a full OCI SHA-256 digest. Resolve and record a real digest from Valve's registry; the example is not a runnable image identifier. A floating `:latest` tag is rejected. Podman must already be installed and functional; this runner does not provision it or alter host container configuration. The workspace and its configured build trees persist between runs. `--userns=keep-id` and the host user/group IDs keep generated files writable by their normal owner.
+```sh
+cmake --preset steam-gcc-debug
+cmake --build --preset steam-gcc-debug
+ctest --preset steam-gcc-debug --output-on-failure
+```
 
-When dependencies must be newer than those supplied by the SDK, build them **inside the same SDK** and install them in a persistent private prefix outside the workspace. Pass `--dependency-prefix /absolute/path/to/sdk-prefix` to mount that directory and set `CMAKE_PREFIX_PATH` inside the container. Do not mount host-built libraries into the SDK: this would defeat the runtime ABI boundary. The runner does not build dependencies automatically, and its successful invocation verifies neither application compatibility nor a Steam deployment.
+For automation or a one-off command, pass the command directly to the same launcher without starting a shell, for example `./external/bridge/runner/bridge-steamrt4.sh cmake --workflow --preset steam-gcc-release`. This forwards the command and its exit status; it does not replace CMake's configure, build, or test phases. The lower-level `runner/bridge-steamrt4-sdk.sh` accepts explicit `--image`, `--workspace`, and optional `--dependency-prefix` arguments for other automation.
 
-This is an SDK execution primitive, not a Steamworks integration or a SteamPipe staging target. Runtime ABI/symbol audits, actual runtime execution, and native hardware checks remain separate release gates.
+An optional `BRIDGE_STEAMRT4_PREFIX` names a persistent private dependency prefix, built with the SDK compiler and located **outside** the source and build trees. The launcher passes this to the lower-level runner, which bind-mounts it and sets `CMAKE_PREFIX_PATH` inside the SDK. Do not reuse libraries built against the host distribution. `BRIDGE_PODMAN_EXECUTABLE` optionally overrides the Podman executable. The runner requires an image reference pinned to a full OCI SHA-256 digest and does not provision Podman, dependencies, or the image.
+
+The source and build directories persist on the host filesystem. Do not reuse a Steam build directory previously configured on the host; remove that stale build tree once and configure it inside the SDK. The toolchain check prevents **host configuration**, not direct host execution of Ninja against an already-configured SDK tree. The SDK build alone does not certify Steam runtime compatibility, test actual Steamworks integration, stage depots, or publish a release.
 
 ## Android prototype
 
