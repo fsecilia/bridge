@@ -3,6 +3,7 @@
 
 include_guard(GLOBAL)
 
+include("${CMAKE_CURRENT_LIST_DIR}/BridgeSDL.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeAndroidEnvironment.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeApplicationIcons.cmake")
 
@@ -193,8 +194,6 @@ function(bridge_add_sdl_android_application)
         APPLICATION_ID
         APPLICATION_NAME
         MAIN_TARGET
-        SDL_TARGET
-        SDL_SOURCE_DIR
         OUTPUT
         MIN_API
         VERSION_CODE
@@ -220,7 +219,7 @@ function(bridge_add_sdl_android_application)
         )
     endif()
 
-    foreach(_required IN ITEMS TARGET APPLICATION_ID APPLICATION_NAME MAIN_TARGET SDL_TARGET SDL_SOURCE_DIR)
+    foreach(_required IN ITEMS TARGET APPLICATION_ID APPLICATION_NAME MAIN_TARGET)
         if(NOT ARG_${_required})
             message(FATAL_ERROR "bridge_add_sdl_android_application(): ${_required} is required")
         endif()
@@ -271,7 +270,8 @@ function(bridge_add_sdl_android_application)
     endif()
 
     _bridge_android_require_shared_target("${ARG_MAIN_TARGET}" "MAIN_TARGET" _main_target)
-    _bridge_android_require_shared_target("${ARG_SDL_TARGET}" "SDL_TARGET" _sdl_target)
+    _bridge_get_sdl(_bridge_sdl_target _sdl_source_dir)
+    _bridge_android_require_shared_target("${_bridge_sdl_target}" "SDL" _sdl_target)
 
     set(_runtime_targets "")
     set(_seen_targets "${_main_target};${_sdl_target}")
@@ -288,8 +288,9 @@ function(bridge_add_sdl_android_application)
         list(APPEND _runtime_targets "${_resolved_runtime_target}")
     endforeach()
 
-    set(_sdl_source_dir "${ARG_SDL_SOURCE_DIR}")
-    cmake_path(ABSOLUTE_PATH _sdl_source_dir BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE)
+    if(NOT _sdl_source_dir)
+        message(FATAL_ERROR "bridge_add_sdl_android_application(): bridge_require_sdl() must select vendored SDL")
+    endif()
     set(_sdl_java_root "${_sdl_source_dir}/android-project/app/src/main/java")
     if(NOT IS_DIRECTORY "${_sdl_java_root}/org/libsdl/app")
         message(

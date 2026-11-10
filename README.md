@@ -7,7 +7,9 @@ Bridge provides CMake-side build, execution, installation, and packaging helpers
 `BridgeApplication.cmake` turns a shared library with an SDL entry point into a runnable application on Linux, Windows, and Android with one call. It chooses the platform-specific functions described in the sections below, so the consumer does not branch on the platform.
 
 ```cmake
+include(external/bridge/cmake/BridgeSDL.cmake)
 include(external/bridge/cmake/BridgeApplication.cmake)
+bridge_require_sdl(VERSION "3.2.0...<4.0" EXTERNAL_NAME sdl)
 
 add_library(game_main SHARED main.cpp)
 target_link_libraries(game_main PRIVATE SDL3::SDL3)
@@ -18,8 +20,6 @@ bridge_add_sdl_application(
     RUN_TARGET game_run
     MAIN_TARGET game_main
     LAUNCHER_SOURCES launcher.cpp
-    SDL_TARGET SDL3::SDL3
-    SDL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/external/sdl3"
     APPLICATION_ID com.example.game
     APPLICATION_NAME "Example Game"
     ASSET_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/runtime"
@@ -31,7 +31,7 @@ bridge_add_sdl_application(
 
 On Android, `game` is the APK packaging target and `game_run` installs and launches it. `ALL`, `OUTPUT`, `VERSION_NAME`, `VERSION_CODE`, `MIN_API`, and `APPLICATION_CATEGORY` apply only to the APK.
 
-Elsewhere, `game` is an executable built from `LAUNCHER_SOURCES`, a `main()` that forwards to the library, linked with `MAIN_TARGET` and `SDL_TARGET`. It receives Canon's build policy, so Canon must be loaded first. `game_run` runs it under Bridge's Wine runner on Windows and directly on the host otherwise. `MAIN_TARGET` must be a shared library on every platform, because Android loads it as `libmain.so`.
+Elsewhere, `game` is an executable built from `LAUNCHER_SOURCES`, a `main()` that forwards to the library, linked with `MAIN_TARGET` and `SDL3::SDL3`. It receives Canon's build policy, so Canon must be loaded first. `game_run` runs it under Bridge's Wine runner on Windows and directly on the host otherwise. `MAIN_TARGET` must be a shared library on every platform, because Android loads it as `libmain.so`.
 
 `ICON_DIRECTORY` adds the Android launcher icons, the embedded Windows icon, or the Linux desktop entry. Its companion arguments are validated on every platform, so a project that configures on Linux does not fail later on Android.
 
@@ -234,6 +234,8 @@ runner/bridge-steamrt4-sdk.sh \
     --workspace "$PWD" -- cmake --version
 ```
 
+Bridge provides `steam-gcc-debug` and `steam-gcc-release` presets by composing the corresponding Canon GCC presets with `bridge-steam-linux`. This mixin selects the installed SDL provider and a system-provided SDL runtime, so applications link to the SDK's SDL without bundling it in Linux installations. Use the Steam presets inside the SDK, not on an arbitrary host distribution. Normal Linux builds use `auto` and bundle SDL; Windows and Android profiles require vendored SDL. The provider and runtime delivery policies are independent: installed SDL can also be bundled by choosing `BRIDGE_SDL_RUNTIME=bundle`.
+
 The image must be pinned to a full OCI SHA-256 digest. Resolve and record a real digest from Valve's registry; the example is not a runnable image identifier. A floating `:latest` tag is rejected. Podman must already be installed and functional; this runner does not provision it or alter host container configuration. The workspace and its configured build trees persist between runs. `--userns=keep-id` and the host user/group IDs keep generated files writable by their normal owner.
 
 When dependencies must be newer than those supplied by the SDK, build them **inside the same SDK** and install them in a persistent private prefix outside the workspace. Pass `--dependency-prefix /absolute/path/to/sdk-prefix` to mount that directory and set `CMAKE_PREFIX_PATH` inside the container. Do not mount host-built libraries into the SDK: this would defeat the runtime ABI boundary. The runner does not build dependencies automatically, and its successful invocation verifies neither application compatibility nor a Steam deployment.
@@ -272,17 +274,17 @@ Bridge can package an existing SDL3 Android shared-library target as a developme
 
 ```cmake
 add_library(main SHARED main.cpp)
-target_link_libraries(main PRIVATE SDL3::SDL3-shared)
+target_link_libraries(main PRIVATE SDL3::SDL3)
 
+include(external/bridge/cmake/BridgeSDL.cmake)
 include(external/bridge/cmake/BridgeAndroidPackaging.cmake)
+bridge_require_sdl(VERSION "3.2.0...<4.0" EXTERNAL_NAME sdl)
 bridge_add_sdl_android_application(
     ALL
     TARGET game_apk
     APPLICATION_ID com.example.game
     APPLICATION_NAME "Example Game"
     MAIN_TARGET main
-    SDL_TARGET SDL3::SDL3-shared
-    SDL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/external/sdl3"
     ASSET_DIRECTORY "${CMAKE_SOURCE_DIR}/assets"
 )
 ```
@@ -354,5 +356,9 @@ bridge_install_linux_desktop_application(
     ICON_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/icons"
 )
 ```
+
+Use `bridge_require_sdl(VERSION <range> [EXTERNAL_NAME sdl])` once before constructing SDL applications; repeated requirements are checked against the resolved version. Bridge calls Canon, applies the required Android shared-library configuration, and retains the source directory for matching Android Java glue. The caller supplies its SDL version requirement but does not pass SDL targets or source paths to the application helpers. Include and use Bridge's SDL module only for programs that need SDL; Bridge's generic build and packaging helpers do not require it.
+
+On Linux, `BRIDGE_SDL_RUNTIME=bundle` (the default) installs SDL alongside the application even when the SDL target is imported. `BRIDGE_SDL_RUNTIME=system` expects the deployment runtime to supply SDL and does not install it. `SDL_RUNTIME bundle|system` can override the setting for an individual `bridge_add_sdl_application()`. The generic `bridge_install_linux_desktop_application()` also accepts `SYSTEM_RUNTIME_TARGETS` and rejects a library declared both system-provided and bundled. The main application library and unrelated `RUNTIME_TARGETS` remain installed, including imported libraries. Android APKs and Windows distributions always package SDL; they cannot use the system-runtime policy.
 
 This installs the executable, its explicit shared runtime targets, optional runtime assets, and `com.example.game.desktop` under `share/applications`. Linux hicolor directories receive the `transparent/` PNGs renamed to the application ID. Executable and packaged-library RPATHs are relative to the installation prefix; the host still provides system libraries. `CATEGORIES`, `ASSET_DIRECTORY`, and `RUNTIME_TARGETS` are optional. The application should use the same ID in its window-system metadata so Wayland can associate its window with the desktop entry. `SDL_SetWindowIcon()` remains the consumer's responsibility and is separate from the installed desktop icons.

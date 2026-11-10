@@ -5,12 +5,14 @@ include_guard(GLOBAL)
 
 # Platform-neutral application targets. Each function chooses the Android,
 # Windows, or host implementation, so consumers do not branch on the platform.
+include("${CMAKE_CURRENT_LIST_DIR}/BridgeSDL.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeAndroidPackaging.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeAndroidRun.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeApplicationIcons.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeWin32Install.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeWin32Run.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/BridgeWin32Runtime.cmake")
+
 
 # Fails on arguments cmake_parse_arguments() could not assign and on missing
 # required keywords. Reads the caller's ARG_* variables.
@@ -184,7 +186,7 @@ endfunction()
 # DEBUGGABLE is opt-in, including for optimized Release builds; never enable it implicitly.
 #
 # Elsewhere, TARGET is an executable built from LAUNCHER_SOURCES, a main() that
-# forwards to MAIN_TARGET, linked with MAIN_TARGET and SDL_TARGET under Canon's
+# forwards to MAIN_TARGET, linked with MAIN_TARGET and the configured SDL target under Canon's
 # build policy. bridge_stage_runtime() makes it runnable from the build tree.
 #
 # ICON_DIRECTORY names the full content-based icon tree, not a platform-specific set. Android packages opaque/,
@@ -193,21 +195,23 @@ endfunction()
 #
 # RUNTIME_TARGETS lists additional shared libraries the application loads. They
 # ship in the APK and are installed with the Linux desktop application.
+# SDL_RUNTIME bundle|system (default BRIDGE_SDL_RUNTIME) selects SDL's Linux runtime delivery.
+# Other RUNTIME_TARGETS are always bundled, including imported libraries.
 #
 #   bridge_add_sdl_application(
 #       TARGET <name> RUN_TARGET <name> MAIN_TARGET <library>
-#       LAUNCHER_SOURCES <source>... SDL_TARGET <target> SDL_SOURCE_DIR <dir>
+#       LAUNCHER_SOURCES <source>...
 #       APPLICATION_ID <id> APPLICATION_NAME <name>
 #       [ALL] [DEBUGGABLE] [OUTPUT <apk>] [VERSION_NAME <name>] [VERSION_CODE <code>] [MIN_API <level>]
 #       [APPLICATION_CATEGORY <category>] [ASSET_DIRECTORY <dir>] [RUNTIME_TARGETS <library>...]
+#       [SDL_RUNTIME bundle|system] (Linux desktop installation only)
 #       [ICON_DIRECTORY <dir> ADAPTIVE_ICON_BACKGROUND_COLOR <color> [DESKTOP_CATEGORIES <categories>]])
 function(bridge_add_sdl_application)
     set(one_value_args
         TARGET
         RUN_TARGET
         MAIN_TARGET
-        SDL_TARGET
-        SDL_SOURCE_DIR
+        SDL_RUNTIME
         APPLICATION_ID
         APPLICATION_NAME
         OUTPUT
@@ -220,11 +224,25 @@ function(bridge_add_sdl_application)
         DESKTOP_CATEGORIES
         APPLICATION_CATEGORY
     )
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "ALL;DEBUGGABLE" "${one_value_args}" "LAUNCHER_SOURCES;RUNTIME_TARGETS")
+    cmake_parse_arguments(
+        PARSE_ARGV 0 ARG "ALL;DEBUGGABLE" "${one_value_args}" "LAUNCHER_SOURCES;RUNTIME_TARGETS"
+    )
     _bridge_check_arguments(
         bridge_add_sdl_application
-        TARGET RUN_TARGET MAIN_TARGET LAUNCHER_SOURCES SDL_TARGET SDL_SOURCE_DIR APPLICATION_ID APPLICATION_NAME
+        TARGET RUN_TARGET MAIN_TARGET LAUNCHER_SOURCES APPLICATION_ID APPLICATION_NAME
     )
+    _bridge_get_sdl(_sdl_target _unused_sdl_source_dir)
+    if(ARG_SDL_RUNTIME)
+        set(_sdl_runtime "${ARG_SDL_RUNTIME}")
+    else()
+        set(_sdl_runtime "${BRIDGE_SDL_RUNTIME}")
+    endif()
+    if(NOT "${_sdl_runtime}" MATCHES "^(bundle|system)$")
+        message(FATAL_ERROR "bridge_add_sdl_application(): SDL_RUNTIME must be bundle or system")
+    endif()
+    if(_sdl_runtime STREQUAL "system" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        message(FATAL_ERROR "bridge_add_sdl_application(): system-provided SDL runtime requires Linux")
+    endif()
     if(ARG_ICON_DIRECTORY AND NOT ARG_ADAPTIVE_ICON_BACKGROUND_COLOR)
         message(FATAL_ERROR "bridge_add_sdl_application(): ICON_DIRECTORY requires ADAPTIVE_ICON_BACKGROUND_COLOR")
     endif()
@@ -238,11 +256,9 @@ function(bridge_add_sdl_application)
     _bridge_android_application_category_attribute(
         bridge_add_sdl_application "${ARG_APPLICATION_CATEGORY}" _application_category_attribute
     )
-    foreach(_role IN ITEMS MAIN_TARGET SDL_TARGET)
-        if(NOT TARGET "${ARG_${_role}}")
-            message(FATAL_ERROR "bridge_add_sdl_application(): ${_role} '${ARG_${_role}}' does not exist")
-        endif()
-    endforeach()
+    if(NOT TARGET "${ARG_MAIN_TARGET}")
+        message(FATAL_ERROR "bridge_add_sdl_application(): MAIN_TARGET '${ARG_MAIN_TARGET}' does not exist")
+    endif()
     get_target_property(_main_type "${ARG_MAIN_TARGET}" TYPE)
     if(NOT _main_type STREQUAL "SHARED_LIBRARY")
         message(
@@ -275,8 +291,6 @@ function(bridge_add_sdl_application)
             APPLICATION_ID "${ARG_APPLICATION_ID}"
             APPLICATION_NAME "${ARG_APPLICATION_NAME}"
             MAIN_TARGET "${ARG_MAIN_TARGET}"
-            SDL_TARGET "${ARG_SDL_TARGET}"
-            SDL_SOURCE_DIR "${ARG_SDL_SOURCE_DIR}"
         )
         bridge_add_run_target(TARGET "${ARG_RUN_TARGET}" APPLICATION_TARGET "${ARG_TARGET}")
         return()
@@ -286,7 +300,7 @@ function(bridge_add_sdl_application)
         message(FATAL_ERROR "bridge_add_sdl_application(): load Canon first; desktop executables use its build policy")
     endif()
     add_executable("${ARG_TARGET}" ${ARG_LAUNCHER_SOURCES})
-    target_link_libraries("${ARG_TARGET}" PRIVATE "${ARG_MAIN_TARGET}" "${ARG_SDL_TARGET}")
+    target_link_libraries("${ARG_TARGET}" PRIVATE "${ARG_MAIN_TARGET}" "${_sdl_target}")
     canon_apply_target("${ARG_TARGET}")
 
     if(ARG_ICON_DIRECTORY)
@@ -304,12 +318,19 @@ function(bridge_add_sdl_application)
                 string(REPLACE ";" "\\;" _categories "${ARG_DESKTOP_CATEGORIES}")
                 list(APPEND _optional CATEGORIES "${_categories}")
             endif()
+            set(_linux_runtime_targets "${ARG_MAIN_TARGET}")
+            if(_sdl_runtime STREQUAL "bundle")
+                list(APPEND _linux_runtime_targets "${_sdl_target}")
+            else()
+                list(APPEND _optional SYSTEM_RUNTIME_TARGETS "${_sdl_target}")
+            endif()
+            list(APPEND _linux_runtime_targets ${ARG_RUNTIME_TARGETS})
             bridge_install_linux_desktop_application(
                 ${_optional}
                 TARGET "${ARG_TARGET}"
                 APPLICATION_ID "${ARG_APPLICATION_ID}"
                 APPLICATION_NAME "${ARG_APPLICATION_NAME}"
-                RUNTIME_TARGETS "${ARG_MAIN_TARGET}" "${ARG_SDL_TARGET}" ${ARG_RUNTIME_TARGETS}
+                RUNTIME_TARGETS ${_linux_runtime_targets}
                 ICON_DIRECTORY "${ARG_ICON_DIRECTORY}"
             )
         else()

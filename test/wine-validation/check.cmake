@@ -11,8 +11,14 @@ endforeach()
 set(_root "${BRIDGE_WINE_VALIDATION_DIRECTORY}/${BRIDGE_WINE_VALIDATION_CASE}")
 file(REMOVE_RECURSE "${_root}")
 file(MAKE_DIRECTORY "${_root}/bin" "${_root}/state")
-set(_socket "${_root}/state/bridge-wayland-test")
-execute_process(COMMAND "${BRIDGE_WINE_VALIDATION_FIXTURE}" "${_socket}" RESULT_VARIABLE _socket_result)
+set(_socket_name "bridge-wayland-test")
+# Bind relative to the state directory: sockaddr_un.sun_path has a small fixed limit,
+# while the absolute build-tree path can exceed it.
+execute_process(
+    COMMAND "${BRIDGE_WINE_VALIDATION_FIXTURE}" "${_socket_name}"
+    WORKING_DIRECTORY "${_root}/state"
+    RESULT_VARIABLE _socket_result
+)
 if(NOT "${_socket_result}" STREQUAL "0")
     message(FATAL_ERROR "Could not create the test Wayland socket: ${_socket_result}")
 endif()
@@ -57,7 +63,7 @@ if(BRIDGE_WINE_VALIDATION_CASE STREQUAL "keep")
     list(APPEND _args "--keep-prefix")
 endif()
 list(APPEND _args "--" "${_root}/bin/scenario")
-set(_display "bridge-wayland-test")
+set(_display "${_socket_name}")
 if(BRIDGE_WINE_VALIDATION_CASE STREQUAL "no-wayland")
     set(_display "")
 endif()

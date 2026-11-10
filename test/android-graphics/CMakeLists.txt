@@ -22,26 +22,9 @@ endif()
 
 enable_language(C)
 
-set(SDL_SHARED ON CACHE BOOL "" FORCE)
-set(SDL_STATIC OFF CACHE BOOL "" FORCE)
-set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
-set(SDL_TESTS OFF CACHE BOOL "" FORCE)
-set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
-# Use Canon's normal dependency resolver. The SDL subtree was checked above
-# because this APK needs the Android Java glue in addition to the SDL target.
-block()
-    if(NOT DEFINED CMAKE_MESSAGE_LOG_LEVEL)
-        set(CMAKE_MESSAGE_LOG_LEVEL WARNING)
-    endif()
-    canon_resolve_dependency(
-        sdl3
-        PACKAGE SDL3
-        VERSION "3.2...<4.0"
-        CONFIG
-        TARGETS SDL3::SDL3-shared
-    )
-endblock()
+# Bridge configures SDL and Java glue together from the vendored dependency.
+include("${PROJECT_SOURCE_DIR}/cmake/BridgeSDL.cmake")
+bridge_require_sdl(VERSION "3.2.0...<4.0" EXTERNAL_NAME sdl3)
 
 add_library(bridge_android_graphics_runtime SHARED runtime.c)
 target_compile_features(bridge_android_graphics_runtime PRIVATE c_std_17)
@@ -52,7 +35,7 @@ target_link_libraries(
     bridge_android_graphics_main
     PRIVATE
         bridge_android_graphics_runtime
-        SDL3::SDL3-shared
+        SDL3::SDL3
         GLESv2
 )
 
@@ -67,8 +50,6 @@ bridge_add_sdl_application(
     RUN_TARGET bridge_android_graphics_run
     MAIN_TARGET bridge_android_graphics_main
     LAUNCHER_SOURCES launcher.c
-    SDL_TARGET SDL3::SDL3-shared
-    SDL_SOURCE_DIR "${BRIDGE_ANDROID_GRAPHICS_SDL_SOURCE_DIR}"
     APPLICATION_ID com.bonkheavy.bridge.graphics
     APPLICATION_NAME "Bridge Android Graphics"
     OUTPUT "${_bridge_apk}"

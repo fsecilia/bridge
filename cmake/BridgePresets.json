@@ -10,10 +10,35 @@
   ],
   "configurePresets": [
     {
+      "name": "bridge-steam-linux",
+      "hidden": true,
+      "cacheVariables": {
+        "BRIDGE_SDL_PROVIDER": "installed",
+        "BRIDGE_SDL_RUNTIME": "system"
+      }
+    },
+    {
+      "name": "steam-gcc-debug",
+      "inherits": [
+        "gcc-debug",
+        "bridge-steam-linux"
+      ]
+    },
+    {
+      "name": "steam-gcc-release",
+      "inherits": [
+        "gcc-release",
+        "bridge-steam-linux"
+      ]
+    },
+    {
       "name": "bridge-win32",
       "hidden": true,
       "inherits": "canon-base",
-      "toolchainFile": "${fileDir}/../toolchains/bridge-win32.cmake"
+      "toolchainFile": "${fileDir}/../toolchains/bridge-win32.cmake",
+      "cacheVariables": {
+        "BRIDGE_SDL_PROVIDER": "vendored"
+      }
     },
     {
       "name": "win32-debug",
@@ -61,7 +86,10 @@
       "name": "bridge-android",
       "hidden": true,
       "inherits": "canon-base",
-      "toolchainFile": "${fileDir}/../toolchains/bridge-android.cmake"
+      "toolchainFile": "${fileDir}/../toolchains/bridge-android.cmake",
+      "cacheVariables": {
+        "BRIDGE_SDL_PROVIDER": "vendored"
+      }
     },
     {
       "name": "bridge-android-x86_64",
@@ -165,6 +193,14 @@
     }
   ],
   "buildPresets": [
+    {
+      "name": "steam-gcc-debug",
+      "configurePreset": "steam-gcc-debug"
+    },
+    {
+      "name": "steam-gcc-release",
+      "configurePreset": "steam-gcc-release"
+    },
     {
       "name": "win32-debug",
       "configurePreset": "win32-debug"
@@ -282,6 +318,16 @@
   ],
   "testPresets": [
     {
+      "name": "steam-gcc-debug",
+      "inherits": "_canon-test",
+      "configurePreset": "steam-gcc-debug"
+    },
+    {
+      "name": "steam-gcc-release",
+      "inherits": "_canon-test",
+      "configurePreset": "steam-gcc-release"
+    },
+    {
       "name": "win32-debug",
       "inherits": "_canon-test",
       "configurePreset": "win32-debug"
@@ -373,6 +419,40 @@
     }
   ],
   "workflowPresets": [
+    {
+      "name": "steam-gcc-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "steam-gcc-debug"
+        },
+        {
+          "type": "build",
+          "name": "steam-gcc-debug"
+        },
+        {
+          "type": "test",
+          "name": "steam-gcc-debug"
+        }
+      ]
+    },
+    {
+      "name": "steam-gcc-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "steam-gcc-release"
+        },
+        {
+          "type": "build",
+          "name": "steam-gcc-release"
+        },
+        {
+          "type": "test",
+          "name": "steam-gcc-release"
+        }
+      ]
+    },
     {
       "name": "win32-debug",
       "steps": [

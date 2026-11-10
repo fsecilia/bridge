@@ -4,16 +4,15 @@
 cmake_minimum_required(VERSION 3.31.6)
 project(BridgeMainStaticFixture LANGUAGES NONE)
 include("${BRIDGE_SOURCE_DIR}/cmake/BridgeApplication.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../sdl-test-double.cmake")
 
 add_library(game_main STATIC IMPORTED)
-add_library(sdl SHARED IMPORTED)
+
 bridge_add_sdl_application(
     TARGET game
     RUN_TARGET game_run
     MAIN_TARGET game_main
     LAUNCHER_SOURCES launcher.cpp
-    SDL_TARGET sdl
-    SDL_SOURCE_DIR sdl
     APPLICATION_ID org.bridge.fixture
     APPLICATION_NAME Fixture
 )

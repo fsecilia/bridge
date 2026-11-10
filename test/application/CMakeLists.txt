@@ -30,14 +30,21 @@ add_library(bridge_application_sdl SHARED sdl.cpp)
 add_library(bridge_application_main SHARED main.cpp)
 target_compile_features(bridge_application_main PRIVATE cxx_std_26)
 target_link_libraries(bridge_application_main PRIVATE bridge_application_sdl)
+add_library(SDL3::SDL3 ALIAS bridge_application_sdl)
+set_property(TARGET bridge_application_sdl PROPERTY SDL_FULL_VERSION "3.4.18")
+include("${PROJECT_SOURCE_DIR}/cmake/BridgeSDL.cmake")
+# This fixture supplies its own SDL stand-in. Its provider is "provided", not the installed or vendored provider
+# selected for real applications by the enclosing preset. Allow Canon to accept the existing target only here.
+block(SCOPE_FOR VARIABLES)
+    set(BRIDGE_SDL_PROVIDER auto)
+    bridge_require_sdl(VERSION "3.2.0...<4.0" EXTERNAL_NAME sdl3)
+endblock()
 
 bridge_add_sdl_application(
     TARGET bridge_application_game
     RUN_TARGET bridge_application_game_run
     MAIN_TARGET bridge_application_main
     LAUNCHER_SOURCES launcher.cpp
-    SDL_TARGET bridge_application_sdl
-    SDL_SOURCE_DIR "${PROJECT_SOURCE_DIR}/external/sdl3"
     APPLICATION_ID org.bridge.application.game
     APPLICATION_NAME "Bridge Application Game"
     ASSET_DIRECTORY "${_bridge_assets}"
@@ -50,8 +57,6 @@ bridge_add_sdl_application(
     RUN_TARGET bridge_application_second_run
     MAIN_TARGET bridge_application_main
     LAUNCHER_SOURCES launcher.cpp
-    SDL_TARGET bridge_application_sdl
-    SDL_SOURCE_DIR "${PROJECT_SOURCE_DIR}/external/sdl3"
     APPLICATION_ID org.bridge.application.second
     APPLICATION_NAME "Bridge Application Second"
     ASSET_DIRECTORY "${_bridge_assets}"

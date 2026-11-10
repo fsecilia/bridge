@@ -6,14 +6,13 @@ project(BridgeMissingCanonFixture LANGUAGES NONE)
 include("${BRIDGE_SOURCE_DIR}/cmake/BridgeApplication.cmake")
 
 add_library(game_main SHARED IMPORTED)
-add_library(sdl SHARED IMPORTED)
+
+bridge_require_sdl(VERSION "3.2.0...<4.0")
 bridge_add_sdl_application(
     TARGET game
     RUN_TARGET game_run
     MAIN_TARGET game_main
     LAUNCHER_SOURCES launcher.cpp
-    SDL_TARGET sdl
-    SDL_SOURCE_DIR sdl
     APPLICATION_ID org.bridge.fixture
     APPLICATION_NAME Fixture
 )

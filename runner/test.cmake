@@ -85,8 +85,10 @@ if(BRIDGE_RUNNER_TEST_MODE MATCHES "^wayland")
     if(BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland" OR
         BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-absolute" OR
         BRIDGE_RUNNER_TEST_MODE STREQUAL "wayland-native-only")
+        # Bind a relative socket name so deep build directories do not exceed sockaddr_un.sun_path.
         execute_process(
-            COMMAND "${BRIDGE_RUNNER_TEST_SOCKET_FIXTURE}" "${_socket_path}"
+            COMMAND "${BRIDGE_RUNNER_TEST_SOCKET_FIXTURE}" "${_wayland_display}"
+            WORKING_DIRECTORY "${BRIDGE_RUNNER_TEST_BINARY_DIR}/state"
             RESULT_VARIABLE _socket_result
         )
         if(NOT "${_socket_result}" STREQUAL "0")

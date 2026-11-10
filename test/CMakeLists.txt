@@ -3,6 +3,16 @@
 
 include("${PROJECT_SOURCE_DIR}/cmake/BridgeAndroidPackaging.cmake")
 
+# Isolated test projects cannot see Canon functions loaded by the parent configure. Pass the actual Canon module
+# location, whether the parent used a vendored subdirectory or an installed package.
+if(DEFINED Canon_SOURCE_DIR AND EXISTS "${Canon_SOURCE_DIR}/cmake/Canon.cmake")
+    set(_bridge_canon_module "${Canon_SOURCE_DIR}/cmake/Canon.cmake")
+elseif(DEFINED Canon_DIR AND EXISTS "${Canon_DIR}/Canon.cmake")
+    set(_bridge_canon_module "${Canon_DIR}/Canon.cmake")
+else()
+    message(FATAL_ERROR "Bridge tests cannot locate the Canon module used by the parent build")
+endif()
+
 # Canon resolves Bridge's optional SDL test dependency from external/sdl3.
 # The Android APK also requires SDL Java sources, so the test needs the subtree.
 set(_bridge_sdl_source_dir "${PROJECT_SOURCE_DIR}/external/sdl3")
@@ -258,6 +268,25 @@ _bridge_add_android_app_runner_test(run run)
 _bridge_add_android_app_runner_test(install-failure install-failure)
 _bridge_add_android_app_runner_test(device-selection selection)
 
+# Version constraints, strict provider requests, Android source policy, and missing requirements are checked
+# independently of actual SDL binaries. Installed-package integration is covered by real consumer builds.
+foreach(_case IN ITEMS
+    valid too-new upper-exclusive changed-source invalid-provider invalid-runtime missing-canon
+    missing-provider preprovided-installed missing-vendored android-installed android-missing-source)
+    _bridge_add_script_test(
+        "bridge.sdl.requirement.${_case}"
+        SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/sdl/check.cmake"
+        LABELS sdl configure
+        DEFINITIONS
+            "BRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/sdl-requirement-${_case}"
+            "BRIDGE_GENERATOR=${CMAKE_GENERATOR}"
+            "BRIDGE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
+            "BRIDGE_CANON_MODULE=${_bridge_canon_module}"
+            "BRIDGE_SDL_CASE=${_case}"
+    )
+endforeach()
+
 # On Android, one device lookup serves every on-device test. The profile names
 # the build in test names: android-arm64 or android-x86_64.
 if(ANDROID)
@@ -388,6 +417,24 @@ _bridge_add_script_test(
         "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/application-stage-directory"
 )
 
+# Exercise Linux installation using built SDL, imported SDL, and an opt-out.
+# The installed set must always include the main library and an unrelated imported runtime.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING AND Python3_Interpreter_FOUND)
+    _bridge_add_script_test(
+        bridge.application.linux-install
+        SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/application/linux-install/check.cmake"
+        LABELS application integration packaging linux
+        TIMEOUT 120
+        DEFINITIONS
+            "BRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/application-linux-install"
+            "BRIDGE_GENERATOR=${CMAKE_GENERATOR}"
+            "BRIDGE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
+            "BRIDGE_PYTHON3=${Python3_EXECUTABLE}"
+            "BRIDGE_CANON_MODULE=${_bridge_canon_module}"
+    )
+endif()
+
 # Configures a fixture that must fail. Argument checks do not depend on the
 # target, so fixtures configure for the host by default and need no compiler.
 # TARGET_PLATFORM fixtures configure with this build's toolchain and compiler,
@@ -411,6 +458,7 @@ function(_bridge_add_configure_failure_test NAME EXPECTED_ERROR)
             "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/application-errors/${NAME}"
             "BRIDGE_GENERATOR=${CMAKE_GENERATOR}"
             "BRIDGE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
+            "BRIDGE_CANON_MODULE=${_bridge_canon_module}"
             ${_platform_definitions}
             "BRIDGE_EXPECTED_ERROR=${EXPECTED_ERROR}"
     )
@@ -430,7 +478,7 @@ _bridge_add_configure_failure_test(
 )
 _bridge_add_configure_failure_test(
     missing-canon
-    "bridge_add_sdl_application(): load Canon first"
+    "bridge_require_sdl(): load Canon before resolving SDL"
 )
 if(NOT ANDROID)
     _bridge_add_configure_failure_test(
