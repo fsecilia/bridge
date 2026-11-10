@@ -64,6 +64,19 @@ _bridge_add_script_test(
         "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/win32-environment"
 )
 
+# The Steam Runtime SDK executor has no Podman dependency during its isolated argument and failure-contract tests.
+foreach(_case IN ITEMS arguments floating-image missing-podman podman-error prefix-inside-workspace prefix-contains-workspace)
+    _bridge_add_script_test(
+        "bridge.runner.steamrt4.${_case}"
+        SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/steamrt4-sdk/check.cmake"
+        LABELS runner steamrt4
+        DEFINITIONS
+            "BRIDGE_STEAMRT4_RUNNER=${PROJECT_SOURCE_DIR}/runner/bridge-steamrt4-sdk.sh"
+            "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/steamrt4-${_case}"
+            "BRIDGE_STEAMRT4_CASE=${_case}"
+    )
+endforeach()
+
 # Runner tests drive each runner script against fake adb or Wine executables,
 # so they run on any host. Each takes a test name and the mode its script runs.
 

@@ -224,6 +224,22 @@ The collector calls `cmake --build` for each listed tree and copies only the man
 
 The coordinator is a build target, not an `ALL` dependency; ordinary application builds require none of the optional distribution environments. Each distribution still requires release validation on its native target platform before shipping.
 
+## Steam Linux Runtime SDK execution (opt-in)
+
+For native Steam games, use Valve's official [Steam Linux Runtime 4 SDK](https://gitlab.steamos.cloud/steamrt/steamrt4/sdk) to build and test with its compiler and library baseline, rather than compiling against the Linux host. `runner/bridge-steamrt4-sdk.sh` executes a supplied command inside a rootless Podman container, sharing the project workspace at its existing absolute path. It is independent of ordinary native, Windows, and Android builds.
+
+```sh
+runner/bridge-steamrt4-sdk.sh \
+    --image 'registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk@sha256:<verified-digest>' \
+    --workspace "$PWD" -- cmake --version
+```
+
+The image must be pinned to a full OCI SHA-256 digest. Resolve and record a real digest from Valve's registry; the example is not a runnable image identifier. A floating `:latest` tag is rejected. Podman must already be installed and functional; this runner does not provision it or alter host container configuration. The workspace and its configured build trees persist between runs. `--userns=keep-id` and the host user/group IDs keep generated files writable by their normal owner.
+
+When dependencies must be newer than those supplied by the SDK, build them **inside the same SDK** and install them in a persistent private prefix outside the workspace. Pass `--dependency-prefix /absolute/path/to/sdk-prefix` to mount that directory and set `CMAKE_PREFIX_PATH` inside the container. Do not mount host-built libraries into the SDK: this would defeat the runtime ABI boundary. The runner does not build dependencies automatically, and its successful invocation verifies neither application compatibility nor a Steam deployment.
+
+This is an SDK execution primitive, not a Steamworks integration or a SteamPipe staging target. Runtime ABI/symbol audits, actual runtime execution, and native hardware checks remain separate release gates.
+
 ## Android prototype
 
 Bridge's Android profiles use the NDK's supported CMake toolchain file and deploy headless executables through `adb`. The Android toolchain is intentionally limited to target establishment: NDK, ABI, minimum API, and the NDK toolchain itself. Set `CMAKE_ANDROID_NDK` or `ANDROID_NDK_ROOT` to select the NDK; Bridge does not search installed NDK versions.
