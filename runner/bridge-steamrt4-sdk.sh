@@ -63,8 +63,13 @@ fi
 options=(
     run --rm --pull=missing --userns=keep-id
     --user "$(id -u):$(id -g)"
+    # Builds use only the image, the workspace, and the optional prefix. A dependency
+    # that tries to download itself fails here instead of silently succeeding.
+    --network=none
     --mount "type=bind,source=${workspace},target=${workspace}"
     --workdir "$workspace"
+    # Presets use this marker to offer SDK-only configurations only inside the SDK.
+    --env BRIDGE_STEAMRT4_CONTAINER=1
     # Keep compiler and Mesa caches in the ignored build tree rather than the source root.
     --env "XDG_CACHE_HOME=${workspace}/build/.cache/steamrt4"
     --env "CCACHE_DIR=${workspace}/build/.cache/steamrt4/ccache"

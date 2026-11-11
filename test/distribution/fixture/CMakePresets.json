@@ -1,0 +1,44 @@
+{
+  "version": 10,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 31,
+    "patch": 6
+  },
+  "configurePresets": [
+    {
+      "name": "fixture-host-release",
+      "generator": "Ninja",
+      "binaryDir": "$env{FIXTURE_WORKFLOW_BINARY_DIR}",
+      "cacheVariables": {
+        "BRIDGE_SOURCE_DIR": "${sourceDir}/../../..",
+        "FIXTURE_ROLE": "producer",
+        "FIXTURE_PAYLOAD": "host-workflow"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "fixture-host-release",
+      "configurePreset": "fixture-host-release",
+      "targets": [
+        "fixture_distribution"
+      ]
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "fixture-host-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "fixture-host-release"
+        },
+        {
+          "type": "build",
+          "name": "fixture-host-release"
+        }
+      ]
+    }
+  ]
+}

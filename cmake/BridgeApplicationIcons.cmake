@@ -93,9 +93,10 @@ endfunction()
 
 # Install a Linux application and its explicit dependencies. Runtime icons are always installed beside the
 # executable; DESKTOP_INTEGRATION install|none (default BRIDGE_LINUX_DESKTOP_INTEGRATION) selects whether to install
-# the freedesktop .desktop entry and hicolor icons as well.
+# the freedesktop .desktop entry and hicolor icons as well. COMPONENT places every rule in that install component, so
+# a package can select exactly the application instead of every install rule in the project.
 function(bridge_install_linux_desktop_application)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "TARGET;APPLICATION_ID;APPLICATION_NAME;ICON_DIRECTORY;ASSET_DIRECTORY;CATEGORIES;DESKTOP_INTEGRATION" "RUNTIME_TARGETS;SYSTEM_RUNTIME_TARGETS")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "TARGET;APPLICATION_ID;APPLICATION_NAME;ICON_DIRECTORY;ASSET_DIRECTORY;CATEGORIES;DESKTOP_INTEGRATION;COMPONENT" "RUNTIME_TARGETS;SYSTEM_RUNTIME_TARGETS")
     if(ARG_UNPARSED_ARGUMENTS OR ARG_KEYWORDS_MISSING_VALUES)
         message(FATAL_ERROR "bridge_install_linux_desktop_application(): invalid arguments")
     endif()
@@ -178,8 +179,12 @@ function(bridge_install_linux_desktop_application)
         "[Desktop Entry]\nType=Application\nName=${ARG_APPLICATION_NAME}\n"
         "Exec=${_output}\nIcon=${ARG_APPLICATION_ID}\nTerminal=false\n${_categories}"
     )
+    set(_component)
+    if(ARG_COMPONENT)
+        set(_component COMPONENT "${ARG_COMPONENT}")
+    endif()
     set_property(TARGET "${ARG_TARGET}" APPEND PROPERTY INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
-    install(TARGETS "${ARG_TARGET}" RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    install(TARGETS "${ARG_TARGET}" RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" ${_component})
     set(_seen_targets "${ARG_TARGET}")
     foreach(_runtime_target IN LISTS ARG_RUNTIME_TARGETS)
         if(NOT TARGET "${_runtime_target}")
@@ -202,25 +207,26 @@ function(bridge_install_linux_desktop_application)
         endif()
         get_target_property(_imported "${_target}" IMPORTED)
         if(_imported)
-            install(IMPORTED_RUNTIME_ARTIFACTS "${_target}" LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+            install(IMPORTED_RUNTIME_ARTIFACTS "${_target}" LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" ${_component})
         else()
             set_property(TARGET "${_target}" APPEND PROPERTY INSTALL_RPATH "$ORIGIN")
-            install(TARGETS "${_target}" LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+            install(TARGETS "${_target}" LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" ${_component})
         endif()
     endforeach()
     if(_asset_directory)
-        install(DIRECTORY "${_asset_directory}/" DESTINATION "${CMAKE_INSTALL_BINDIR}")
+        install(DIRECTORY "${_asset_directory}/" DESTINATION "${CMAKE_INSTALL_BINDIR}" ${_component})
     endif()
     # SDL loads transparent PNGs directly from icons/ beside the executable.
     # Desktop integration reuses the same artwork under the application ID when requested.
-    install(DIRECTORY "${_directory}/transparent/" DESTINATION "${CMAKE_INSTALL_BINDIR}/icons")
+    install(DIRECTORY "${_directory}/transparent/" DESTINATION "${CMAKE_INSTALL_BINDIR}/icons" ${_component})
     if(_desktop_integration STREQUAL "install")
-        install(FILES "${_desktop}" DESTINATION share/applications)
+        install(FILES "${_desktop}" DESTINATION share/applications ${_component})
         foreach(_size IN ITEMS 16 24 32 48 64 72 96 128 144 192 256 512)
             install(
                 FILES "${_directory}/transparent/${_size}.png"
                 DESTINATION "share/icons/hicolor/${_size}x${_size}/apps"
                 RENAME "${ARG_APPLICATION_ID}.png"
+                ${_component}
             )
         endforeach()
     endif()

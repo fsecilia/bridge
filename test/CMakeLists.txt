@@ -88,7 +88,7 @@ foreach(_case IN ITEMS arguments shell floating-image missing-podman podman-erro
 endforeach()
 
 # The developer-facing launcher reads environment configuration and delegates to the same Podman runner.
-foreach(_case IN ITEMS command shell prefix missing-image podman-error)
+foreach(_case IN ITEMS command shell prefix missing-image image-file invalid-image-file override podman-error)
     _bridge_add_script_test(
         "bridge.runner.steamrt4-launcher.${_case}"
         SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/steamrt4-sdk/check-launcher.cmake"
@@ -99,6 +99,24 @@ foreach(_case IN ITEMS command shell prefix missing-image podman-error)
             "BRIDGE_STEAMRT4_CASE=${_case}"
     )
 endforeach()
+
+# Running a packaged artifact under SteamLinuxRuntime_4, with and without gdbserver, against a fake runtime.
+_bridge_add_script_test(
+    bridge.steamrt4.run
+    SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/steamrt4-run/check.cmake"
+    LABELS steamrt4 runner
+    DEFINITIONS
+        "BRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/steamrt4-run"
+)
+
+# SDK-only presets are hidden on the host and offered inside the container, through the runner's marker variable.
+_bridge_add_script_test(
+    bridge.steamrt4.preset-visibility
+    SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/steamrt4-sdk/check-presets.cmake"
+    LABELS steamrt4 configure
+    DEFINITIONS "BRIDGE_PRESET_ROOT=${PROJECT_SOURCE_DIR}"
+)
 
 # These probe the published os-release contract without needing an SDK image or a working Podman installation.
 foreach(_case IN ITEMS sdk host runtime wrong-version missing-variant missing-file)

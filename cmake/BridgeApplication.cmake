@@ -201,6 +201,7 @@ endfunction()
 # RUNTIME_TARGETS lists additional shared libraries the application loads. They
 # ship in the APK and are installed with the Linux desktop application.
 # SDL_RUNTIME bundle|system (default BRIDGE_SDL_RUNTIME) selects SDL's Linux runtime delivery.
+# INSTALL_COMPONENT places the Linux installation rules in that install component.
 # Other RUNTIME_TARGETS are always bundled, including imported libraries.
 #
 #   bridge_add_sdl_application(
@@ -209,7 +210,8 @@ endfunction()
 #       APPLICATION_ID <id> APPLICATION_NAME <name>
 #       [ALL] [DEBUGGABLE] [OUTPUT <apk>] [VERSION_NAME <name>] [VERSION_CODE <code>] [MIN_API <level>]
 #       [APPLICATION_CATEGORY <category>] [ASSET_DIRECTORY <dir>] [RUNTIME_TARGETS <library>...]
-#       [SDL_RUNTIME bundle|system] [DESKTOP_INTEGRATION install|none] (Linux installation only)
+#       [SDL_RUNTIME bundle|system] [DESKTOP_INTEGRATION install|none] [INSTALL_COMPONENT <component>]
+#       (Linux installation only)
 #       [ICON_DIRECTORY <dir> ADAPTIVE_ICON_BACKGROUND_COLOR <color> [DESKTOP_CATEGORIES <categories>]])
 function(bridge_add_sdl_application)
     set(one_value_args
@@ -218,6 +220,7 @@ function(bridge_add_sdl_application)
         MAIN_TARGET
         SDL_RUNTIME
         DESKTOP_INTEGRATION
+        INSTALL_COMPONENT
         APPLICATION_ID
         APPLICATION_NAME
         OUTPUT
@@ -324,6 +327,9 @@ function(bridge_add_sdl_application)
             endforeach()
             if(ARG_DESKTOP_INTEGRATION)
                 list(APPEND _optional DESKTOP_INTEGRATION "${ARG_DESKTOP_INTEGRATION}")
+            endif()
+            if(ARG_INSTALL_COMPONENT)
+                list(APPEND _optional COMPONENT "${ARG_INSTALL_COMPONENT}")
             endif()
             if(ARG_DESKTOP_CATEGORIES)
                 # One list-valued argument; keep its separators.

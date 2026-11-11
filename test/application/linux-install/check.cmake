@@ -23,7 +23,7 @@ endif()
 file(WRITE "${_icons}/README.md" "Source-only icon documentation\n")
 
 # Exercise desktop integration independently of whether SDL comes from the build tree or an imported target.
-foreach(_case IN ITEMS built imported-default imported-excluded imported-policy built-policy built-no-desktop imported-no-desktop-override)
+foreach(_case IN ITEMS built imported-default imported-excluded imported-policy built-policy built-no-desktop imported-no-desktop-override built-component)
     set(_build "${BRIDGE_TEST_BINARY_DIR}/${_case}")
     set(_prefix "${_build}/installed")
     set(_sdl_kind built)
@@ -31,6 +31,10 @@ foreach(_case IN ITEMS built imported-default imported-excluded imported-policy 
     set(_install_sdl bundle)
     set(_desktop_integration install)
     set(_application_desktop_integration "")
+    set(_install_component "")
+    if(_case STREQUAL "built-component")
+        set(_install_component game)
+    endif()
     if(_case MATCHES "^imported-")
         set(_sdl_kind imported)
     endif()
@@ -57,6 +61,7 @@ foreach(_case IN ITEMS built imported-default imported-excluded imported-policy 
             "-DBRIDGE_SDL_RUNTIME=${_install_sdl}"
             "-DBRIDGE_LINUX_DESKTOP_INTEGRATION=${_desktop_integration}"
             "-DBRIDGE_APPLICATION_DESKTOP_INTEGRATION=${_application_desktop_integration}"
+            "-DBRIDGE_APPLICATION_INSTALL_COMPONENT=${_install_component}"
         RESULT_VARIABLE _result OUTPUT_VARIABLE _stdout ERROR_VARIABLE _stderr
     )
     if(NOT "${_result}" STREQUAL "0")
@@ -69,8 +74,13 @@ foreach(_case IN ITEMS built imported-default imported-excluded imported-policy 
     if(NOT "${_result}" STREQUAL "0")
         message(FATAL_ERROR "Linux install ${_case} build failed: ${_result}\n${_stdout}\n${_stderr}")
     endif()
+    # A component install must contain the whole application and nothing from other components.
+    set(_component_arguments)
+    if(_install_component)
+        set(_component_arguments --component "${_install_component}")
+    endif()
     execute_process(
-        COMMAND "${CMAKE_COMMAND}" --install "${_build}" --prefix "${_prefix}"
+        COMMAND "${CMAKE_COMMAND}" --install "${_build}" --prefix "${_prefix}" ${_component_arguments}
         RESULT_VARIABLE _result OUTPUT_VARIABLE _stdout ERROR_VARIABLE _stderr
     )
     if(NOT "${_result}" STREQUAL "0")
@@ -136,6 +146,9 @@ foreach(_case IN ITEMS built imported-default imported-excluded imported-policy 
         message(FATAL_ERROR "Linux install ${_case} has unexpected icons: ${_installed_icons}")
     endif()
 
+    if(_install_component AND EXISTS "${_prefix}/share/unrelated")
+        message(FATAL_ERROR "Linux install ${_case} included another component's files")
+    endif()
     set(_installed_sdl "${_prefix}/lib/libbridge_linux_install_sdl.so")
     if(_application_runtime STREQUAL "system" OR _install_sdl STREQUAL "system")
         if(EXISTS "${_installed_sdl}")

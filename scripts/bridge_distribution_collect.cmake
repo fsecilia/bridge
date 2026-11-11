@@ -14,8 +14,9 @@ file(REAL_PATH "${BRIDGE_DISTRIBUTION_EXPECTED_SOURCE}" _source)
 file(REMOVE "${BRIDGE_DISTRIBUTION_COLLECTION_DIRECTORY}/manifest.json")
 
 # Build all requested producers before publishing any outputs. A workflow producer
-# configures and tests inside its launcher, while ordinary producers reuse their
-# already configured build trees. Both paths verify source identity afterward.
+# runs its complete workflow preset (on the host or through its launcher), while
+# ordinary producers reuse their already configured build trees. Both paths verify
+# source identity afterward.
 set(_manifests "")
 set(_producers "")
 foreach(_entry IN LISTS BRIDGE_DISTRIBUTION_BUILD_TREES)
@@ -25,17 +26,17 @@ foreach(_entry IN LISTS BRIDGE_DISTRIBUTION_BUILD_TREES)
     list(APPEND _producers "configured|${CMAKE_MATCH_1}|${CMAKE_MATCH_2}")
 endforeach()
 foreach(_entry IN LISTS BRIDGE_DISTRIBUTION_WORKFLOW_BUILD_TREES)
-    if(NOT "${_entry}" MATCHES "^([^|]+)\\|([A-Za-z0-9_-]+)\\|([^|]+)\\|([A-Za-z0-9_-]+)$")
-        message(FATAL_ERROR "Invalid distribution workflow entry: '${_entry}'")
+    if(NOT "${_entry}" MATCHES "^([^|]+)\\|([A-Za-z0-9_-]+)(\\|([^|]+))?$")
+        message(FATAL_ERROR "Invalid distribution workflow entry: '${_entry}'\n"
+            "Expected <build directory>|<workflow preset>[|<command launcher>]")
     endif()
-    list(APPEND _producers "workflow|${CMAKE_MATCH_1}|${CMAKE_MATCH_2}|${CMAKE_MATCH_3}|${CMAKE_MATCH_4}")
+    list(APPEND _producers "workflow|${CMAKE_MATCH_1}|${CMAKE_MATCH_2}|${CMAKE_MATCH_4}")
 endforeach()
 
 foreach(_producer IN LISTS _producers)
     string(REPLACE "|" ";" _parts "${_producer}")
     list(GET _parts 0 _mode)
     list(GET _parts 1 _build_dir)
-    list(GET _parts 2 _target)
     if(EXISTS "${_build_dir}")
         file(REAL_PATH "${_build_dir}" _build_dir)
     endif()
@@ -43,14 +44,25 @@ foreach(_producer IN LISTS _producers)
         message(FATAL_ERROR "A distribution coordinator cannot recursively build its own active tree: ${_build_dir}")
     endif()
     if(_mode STREQUAL "workflow")
+        # The workflow configures, builds, tests, and packages in one invocation; its
+        # final step must build the producer's distribution target. A manifest left by
+        # an earlier run must not stand in for one this workflow failed to write.
+        list(GET _parts 2 _preset)
         list(GET _parts 3 _launcher)
-        list(GET _parts 4 _preset)
-        if(NOT IS_ABSOLUTE "${_launcher}" OR NOT EXISTS "${_launcher}")
-            message(FATAL_ERROR "Distribution workflow launcher is unavailable: ${_launcher}")
+        file(REMOVE "${_build_dir}/dist/manifest.json")
+        if(_launcher STREQUAL "")
+            set(_workflow_command "${CMAKE_COMMAND}")
+            message(STATUS "Running distribution workflow ${_preset}")
+        else()
+            if(NOT IS_ABSOLUTE "${_launcher}" OR NOT EXISTS "${_launcher}")
+                message(FATAL_ERROR "Distribution workflow launcher is unavailable: ${_launcher}")
+            endif()
+            # The launched environment supplies its own CMake.
+            set(_workflow_command "${_launcher}" cmake)
+            message(STATUS "Running distribution workflow ${_preset} through ${_launcher}")
         endif()
-        message(STATUS "Running distribution workflow ${_preset} through ${_launcher}")
         execute_process(
-            COMMAND "${_launcher}" cmake --workflow --preset "${_preset}"
+            COMMAND ${_workflow_command} --workflow --preset "${_preset}"
             WORKING_DIRECTORY "${_source}"
             RESULT_VARIABLE _result
             COMMAND_ECHO STDOUT
@@ -58,6 +70,8 @@ foreach(_producer IN LISTS _producers)
         if(NOT "${_result}" STREQUAL "0")
             message(FATAL_ERROR "Distribution workflow failed (${_result}): ${_preset} in ${_source}")
         endif()
+    else()
+        list(GET _parts 2 _target)
     endif()
     if(NOT EXISTS "${_build_dir}/CMakeCache.txt")
         message(FATAL_ERROR "Requested distribution build tree is not configured: ${_build_dir}\nConfigure it with the matching project preset first.")
@@ -72,30 +86,27 @@ foreach(_producer IN LISTS _producers)
     if(NOT "${_cache_source}" STREQUAL "${_source}")
         message(FATAL_ERROR "Distribution build tree uses a different source: ${_build_dir}\nExpected: ${_source}\nActual: ${_cache_source}")
     endif()
-    set(_config_args "")
-    if(DEFINED BRIDGE_DISTRIBUTION_CONFIG AND NOT "${BRIDGE_DISTRIBUTION_CONFIG}" STREQUAL "")
-        list(APPEND _config_args --config "${BRIDGE_DISTRIBUTION_CONFIG}")
-    endif()
-    message(STATUS "Building distribution target ${_target} in ${_build_dir}")
-    if(_mode STREQUAL "workflow")
-        execute_process(
-            COMMAND "${_launcher}" cmake --build "${_build_dir}" --target "${_target}" ${_config_args}
-            WORKING_DIRECTORY "${_source}"
-            RESULT_VARIABLE _result
-            COMMAND_ECHO STDOUT
-        )
-    else()
+    if(_mode STREQUAL "configured")
+        set(_config_args "")
+        if(DEFINED BRIDGE_DISTRIBUTION_CONFIG AND NOT "${BRIDGE_DISTRIBUTION_CONFIG}" STREQUAL "")
+            list(APPEND _config_args --config "${BRIDGE_DISTRIBUTION_CONFIG}")
+        endif()
+        message(STATUS "Building distribution target ${_target} in ${_build_dir}")
         execute_process(
             COMMAND "${CMAKE_COMMAND}" --build "${_build_dir}" --target "${_target}" ${_config_args}
             RESULT_VARIABLE _result
             COMMAND_ECHO STDOUT
         )
-    endif()
-    if(NOT "${_result}" STREQUAL "0")
-        message(FATAL_ERROR "Distribution build failed (${_result}): ${_build_dir} target ${_target}")
+        if(NOT "${_result}" STREQUAL "0")
+            message(FATAL_ERROR "Distribution build failed (${_result}): ${_build_dir} target ${_target}")
+        endif()
     endif()
     set(_manifest "${_build_dir}/dist/manifest.json")
     if(NOT EXISTS "${_manifest}")
+        if(_mode STREQUAL "workflow")
+            message(FATAL_ERROR "Distribution workflow ${_preset} did not produce its manifest: ${_manifest}\n"
+                "The workflow's final step must build the distribution target.")
+        endif()
         message(FATAL_ERROR "Distribution build did not produce its manifest: ${_manifest}")
     endif()
     list(APPEND _manifests "${_manifest}")

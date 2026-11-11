@@ -150,8 +150,8 @@ foreach(_mode IN ITEMS success missing wrong-state fail)
     endif()
 endforeach()
 
-# A workflow producer starts without a CMake cache. The launcher's workflow
-# phase configures it, and its build phase produces the manifest in that tree.
+# A workflow producer starts without a CMake cache. One launched workflow
+# configures it and builds its distribution target, producing the manifest.
 set(_workflow_producer "${BRIDGE_TEST_BINARY_DIR}/workflow-producer")
 set(_workflow_launcher "${BRIDGE_TEST_BINARY_DIR}/launch-workflow.sh")
 set(_workflow_log "${BRIDGE_TEST_BINARY_DIR}/workflow-calls.log")
@@ -167,8 +167,8 @@ if [[ "${1-}" == '--workflow' && "${2-}" == '--preset' && "${3-}" == 'fixture-re
     if [[ -f '@BRIDGE_TEST_BINARY_DIR@/fail-workflow' ]]; then exit 29; fi
     '@CMAKE_COMMAND@' -S '@_fixture@' -B '@_workflow_producer@' -G Ninja \
         '-DBRIDGE_SOURCE_DIR=@BRIDGE_SOURCE_DIR@' -DFIXTURE_ROLE=producer -DFIXTURE_PAYLOAD=workflow
-elif [[ "${1-}" == '--build' ]]; then
-    '@CMAKE_COMMAND@' "$@"
+    if [[ -f '@BRIDGE_TEST_BINARY_DIR@/skip-package' ]]; then exit 0; fi
+    '@CMAKE_COMMAND@' --build '@_workflow_producer@' --target fixture_distribution
 else
     echo 'unexpected SDK launcher phase' >&2
     exit 17
@@ -189,14 +189,12 @@ if(NOT _result STREQUAL "workflow")
 endif()
 file(STRINGS "${_workflow_log}" _calls)
 list(LENGTH _calls _call_count)
-if(NOT _call_count EQUAL 2)
-    message(FATAL_ERROR "Expected workflow and build invocations: ${_calls}")
+if(NOT _call_count EQUAL 1)
+    message(FATAL_ERROR "Expected exactly one launched workflow: ${_calls}")
 endif()
 list(GET _calls 0 _workflow_call)
-list(GET _calls 1 _build_call)
-if(NOT _workflow_call MATCHES "--workflow --preset fixture-release" OR
-   NOT _build_call MATCHES "--build .* --target fixture_distribution")
-    message(FATAL_ERROR "Incorrect launched workflow phases: ${_calls}")
+if(NOT _workflow_call STREQUAL "cmake --workflow --preset fixture-release")
+    message(FATAL_ERROR "Incorrect launched workflow: ${_calls}")
 endif()
 
 file(WRITE "${BRIDGE_TEST_BINARY_DIR}/fail-workflow" "fail")
@@ -207,3 +205,33 @@ if("${_result}" STREQUAL "0" OR EXISTS "${_collected}/manifest.json" OR
     message(FATAL_ERROR "Failed workflow published a distribution:\n${_stdout}${_stderr}")
 endif()
 file(REMOVE "${BRIDGE_TEST_BINARY_DIR}/fail-workflow")
+
+# A workflow that succeeds without packaging must not be satisfied by the
+# manifest an earlier successful run left in the producer tree.
+if(NOT EXISTS "${_workflow_producer}/dist/manifest.json")
+    file(MAKE_DIRECTORY "${_workflow_producer}/dist")
+    file(WRITE "${_workflow_producer}/dist/manifest.json" "{}")
+endif()
+file(WRITE "${BRIDGE_TEST_BINARY_DIR}/skip-package" "skip")
+execute_process(COMMAND "${CMAKE_COMMAND}" --build "${_coordinator}" --target fixture_distribution
+    RESULT_VARIABLE _result OUTPUT_VARIABLE _stdout ERROR_VARIABLE _stderr)
+if("${_result}" STREQUAL "0" OR EXISTS "${_collected}/manifest.json" OR
+   NOT "${_stdout}${_stderr}" MATCHES "did not produce its manifest")
+    message(FATAL_ERROR "A stale producer manifest satisfied a workflow that did not package:\n${_stdout}${_stderr}")
+endif()
+file(REMOVE "${BRIDGE_TEST_BINARY_DIR}/skip-package")
+
+# Without a launcher, the coordinator's own CMake runs the producer's workflow preset
+# from the expected source directory.
+set(_host_producer "${BRIDGE_TEST_BINARY_DIR}/host-workflow-producer")
+file(REMOVE_RECURSE "${_host_producer}" "${_collected}")
+_distribution_run("${CMAKE_COMMAND}" -S "${_fixture}" -B "${_coordinator}" -G Ninja
+    "-DBRIDGE_SOURCE_DIR=${BRIDGE_SOURCE_DIR}" -DFIXTURE_ROLE=coordinator
+    "-DFIXTURE_PRODUCER_DIR=${_host_producer}" "-DFIXTURE_OUTPUT_DIR=${_collected}"
+    -DFIXTURE_WORKFLOW_LAUNCHER= -DFIXTURE_HOST_WORKFLOW=ON -DFIXTURE_VALIDATOR=)
+_distribution_run("${CMAKE_COMMAND}" -E env "FIXTURE_WORKFLOW_BINARY_DIR=${_host_producer}"
+    "${CMAKE_COMMAND}" --build "${_coordinator}" --target fixture_distribution)
+file(READ "${_collected}/windows-x64/example.zip" _result)
+if(NOT _result STREQUAL "host-workflow")
+    message(FATAL_ERROR "Host workflow producer was not configured and collected correctly: ${_result}")
+endif()

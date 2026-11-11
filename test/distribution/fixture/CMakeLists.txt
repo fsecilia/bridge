@@ -33,7 +33,11 @@ elseif(FIXTURE_ROLE STREQUAL "coordinator")
     set(_workflow)
     if(FIXTURE_WORKFLOW_LAUNCHER)
         list(APPEND _workflow WORKFLOW_BUILD_TREES
-            "${FIXTURE_PRODUCER_DIR}|fixture_distribution|${FIXTURE_WORKFLOW_LAUNCHER}|fixture-release")
+            "${FIXTURE_PRODUCER_DIR}|fixture-release|${FIXTURE_WORKFLOW_LAUNCHER}")
+        set(FIXTURE_PRODUCER_DIR "")
+    elseif(FIXTURE_HOST_WORKFLOW)
+        # CMakePresets.json beside this file defines the host workflow.
+        list(APPEND _workflow WORKFLOW_BUILD_TREES "${FIXTURE_PRODUCER_DIR}|fixture-host-release")
         set(FIXTURE_PRODUCER_DIR "")
     endif()
     set(_ordinary)

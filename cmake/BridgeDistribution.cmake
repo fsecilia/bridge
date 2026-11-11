@@ -37,11 +37,13 @@ endfunction()
 
 # Registers a host-side coordinator. Each BUILD_TREES entry is
 # <configured build directory>|<distribution target>. A WORKFLOW_BUILD_TREES entry is
-# <build directory>|<distribution target>|<command launcher>|<workflow preset>.
-# The latter runs a full workflow (configure/build/test) and then packages inside
-# the launched environment, allowing unconfigured producer trees. An optional
-# VALIDATOR inspects collected artifacts and returns per-artifact results using
-# --manifest <candidate> --report <output> plus VALIDATION_ARGS.
+# <build directory>|<workflow preset>[|<command launcher>]. The workflow runs from
+# EXPECTED_SOURCE with the coordinator's CMake, or with `<launcher> cmake` inside the
+# launched environment, and may start from an unconfigured tree. Its final step must
+# build the producer's distribution target. An optional VALIDATOR inspects collected
+# artifacts and returns per-artifact results using --manifest <candidate> --report
+# <output> plus VALIDATION_ARGS. The target runs in the terminal pool so producer
+# output streams as it happens.
 function(bridge_add_distribution_collection)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "" "TARGET;OUTPUT_DIRECTORY;EXPECTED_SOURCE;VALIDATOR"
         "BUILD_TREES;WORKFLOW_BUILD_TREES;VALIDATION_ARGS")
@@ -71,6 +73,7 @@ function(bridge_add_distribution_collection)
             "-DBRIDGE_DISTRIBUTION_CONFIG=$<CONFIG>"
             -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/bridge_distribution_collect.cmake"
         COMMENT "Building and collecting requested distributions"
+        USES_TERMINAL
         VERBATIM
     )
 endfunction()

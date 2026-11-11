@@ -12,6 +12,11 @@
     {
       "name": "bridge-steam-linux",
       "hidden": true,
+      "condition": {
+        "type": "equals",
+        "lhs": "$env{BRIDGE_STEAMRT4_CONTAINER}",
+        "rhs": "1"
+      },
       "toolchainFile": "${fileDir}/../toolchains/bridge-steamrt4.cmake",
       "cacheVariables": {
         "BRIDGE_SDL_PROVIDER": "installed",
@@ -197,10 +202,20 @@
   "buildPresets": [
     {
       "name": "steam-gcc-debug",
+      "condition": {
+        "type": "equals",
+        "lhs": "$env{BRIDGE_STEAMRT4_CONTAINER}",
+        "rhs": "1"
+      },
       "configurePreset": "steam-gcc-debug"
     },
     {
       "name": "steam-gcc-release",
+      "condition": {
+        "type": "equals",
+        "lhs": "$env{BRIDGE_STEAMRT4_CONTAINER}",
+        "rhs": "1"
+      },
       "configurePreset": "steam-gcc-release"
     },
     {
@@ -321,11 +336,21 @@
   "testPresets": [
     {
       "name": "steam-gcc-debug",
+      "condition": {
+        "type": "equals",
+        "lhs": "$env{BRIDGE_STEAMRT4_CONTAINER}",
+        "rhs": "1"
+      },
       "inherits": "_canon-test",
       "configurePreset": "steam-gcc-debug"
     },
     {
       "name": "steam-gcc-release",
+      "condition": {
+        "type": "equals",
+        "lhs": "$env{BRIDGE_STEAMRT4_CONTAINER}",
+        "rhs": "1"
+      },
       "inherits": "_canon-test",
       "configurePreset": "steam-gcc-release"
     },

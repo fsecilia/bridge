@@ -32,6 +32,8 @@ if(BRIDGE_STEAMRT4_CASE STREQUAL "arguments")
         "run\n--rm\n--pull=missing\n--userns=keep-id\n"
         "--mount\ntype=bind,source=${BRIDGE_TEST_BINARY_DIR}/workspace,target=${BRIDGE_TEST_BINARY_DIR}/workspace\n"
         "--workdir\n${BRIDGE_TEST_BINARY_DIR}/workspace\n"
+        "--network=none\n"
+        "--env\nBRIDGE_STEAMRT4_CONTAINER=1\n"
         "--env\nXDG_CACHE_HOME=${BRIDGE_TEST_BINARY_DIR}/workspace/build/.cache/steamrt4\n"
         "--env\nCCACHE_DIR=${BRIDGE_TEST_BINARY_DIR}/workspace/build/.cache/steamrt4/ccache\n"
         "--mount\ntype=bind,source=${BRIDGE_TEST_BINARY_DIR}/dependencies,target=${BRIDGE_TEST_BINARY_DIR}/dependencies\n"
