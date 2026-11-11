@@ -126,13 +126,17 @@ function(bridge_stage_runtime)
             _bridge_validate_icon_directory("${_source}" _source _python _icon_files)
             set(_place_destination "${_destination}/icons")
         endif()
+        set(_copy_source "${_source}")
+        if(_place STREQUAL "ICON_DIRECTORY" AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+            set(_copy_source "${_source}/transparent")
+        endif()
         # A manifest per place and configuration lets the copy remove files
         # that were staged before but have since left the source directory.
         add_custom_command(
             TARGET "${_staging_target}" POST_BUILD
             COMMAND
                 "${CMAKE_COMMAND}"
-                "-DSOURCE=${_source}"
+                "-DSOURCE=${_copy_source}"
                 "-DDESTINATION=${_place_destination}"
                 "-DMANIFEST=${_manifests}/${_place}-$<CONFIG>.manifest"
                 -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/bridge_stage_directory.cmake"
@@ -190,8 +194,9 @@ endfunction()
 # build policy. bridge_stage_runtime() makes it runnable from the build tree.
 #
 # ICON_DIRECTORY names the full content-based icon tree, not a platform-specific set. Android packages opaque/,
-# adaptive/, and monochrome/; Windows embeds an ICO from transparent/; Linux installs transparent/ as hicolor icons.
-# On Linux, DESKTOP_CATEGORIES also sets the categories of the installed .desktop entry.
+# adaptive/, and monochrome/; Windows embeds an ICO from transparent/; Linux uses transparent/ for runtime icons and optional hicolor icons.
+# On Linux, DESKTOP_CATEGORIES sets the categories of the optional .desktop entry. DESKTOP_INTEGRATION install|none
+# (default BRIDGE_LINUX_DESKTOP_INTEGRATION) controls the desktop entry and hicolor installation, not runtime icons.
 #
 # RUNTIME_TARGETS lists additional shared libraries the application loads. They
 # ship in the APK and are installed with the Linux desktop application.
@@ -204,7 +209,7 @@ endfunction()
 #       APPLICATION_ID <id> APPLICATION_NAME <name>
 #       [ALL] [DEBUGGABLE] [OUTPUT <apk>] [VERSION_NAME <name>] [VERSION_CODE <code>] [MIN_API <level>]
 #       [APPLICATION_CATEGORY <category>] [ASSET_DIRECTORY <dir>] [RUNTIME_TARGETS <library>...]
-#       [SDL_RUNTIME bundle|system] (Linux desktop installation only)
+#       [SDL_RUNTIME bundle|system] [DESKTOP_INTEGRATION install|none] (Linux installation only)
 #       [ICON_DIRECTORY <dir> ADAPTIVE_ICON_BACKGROUND_COLOR <color> [DESKTOP_CATEGORIES <categories>]])
 function(bridge_add_sdl_application)
     set(one_value_args
@@ -212,6 +217,7 @@ function(bridge_add_sdl_application)
         RUN_TARGET
         MAIN_TARGET
         SDL_RUNTIME
+        DESKTOP_INTEGRATION
         APPLICATION_ID
         APPLICATION_NAME
         OUTPUT
@@ -242,6 +248,9 @@ function(bridge_add_sdl_application)
     endif()
     if(_sdl_runtime STREQUAL "system" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
         message(FATAL_ERROR "bridge_add_sdl_application(): system-provided SDL runtime requires Linux")
+    endif()
+    if(ARG_DESKTOP_INTEGRATION AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        message(FATAL_ERROR "bridge_add_sdl_application(): DESKTOP_INTEGRATION requires Linux")
     endif()
     if(ARG_ICON_DIRECTORY AND NOT ARG_ADAPTIVE_ICON_BACKGROUND_COLOR)
         message(FATAL_ERROR "bridge_add_sdl_application(): ICON_DIRECTORY requires ADAPTIVE_ICON_BACKGROUND_COLOR")
@@ -313,6 +322,9 @@ function(bridge_add_sdl_application)
                     list(APPEND _optional "${_argument}" "${ARG_${_argument}}")
                 endif()
             endforeach()
+            if(ARG_DESKTOP_INTEGRATION)
+                list(APPEND _optional DESKTOP_INTEGRATION "${ARG_DESKTOP_INTEGRATION}")
+            endif()
             if(ARG_DESKTOP_CATEGORIES)
                 # One list-valued argument; keep its separators.
                 string(REPLACE ";" "\\;" _categories "${ARG_DESKTOP_CATEGORIES}")

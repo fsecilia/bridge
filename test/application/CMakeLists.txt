@@ -20,6 +20,7 @@ execute_process(
 if(NOT _bridge_icons_result EQUAL 0)
     message(FATAL_ERROR "Bridge application fixture icons could not be generated:\n${_bridge_icons_error}")
 endif()
+file(WRITE "${_bridge_icons}/README.md" "Source-only icon notes\n")
 
 # All programs share one output directory, so they share one staging target.
 # Each requests only part of the runtime tree, and each still finds all of it.

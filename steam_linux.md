@@ -1,6 +1,6 @@
 # Steam Linux Runtime 4 SDK builds
 
-Bridge builds Steam Linux applications inside Valve's [Steam Linux Runtime 4 SDK](https://gitlab.steamos.cloud/steamrt/steamrt4/sdk). The SDK supplies the compiler, system libraries, and SDL version that a Steam build uses. The `steam-gcc-debug` and `steam-gcc-release` CMake presets select SDK-installed SDL and omit SDL from the installed game. They do not launch a container themselves.
+Bridge builds Steam Linux applications inside Valve's [Steam Linux Runtime 4 SDK](https://gitlab.steamos.cloud/steamrt/steamrt4/sdk). The SDK supplies the compiler, system libraries, and SDL version that a Steam build uses. The `steam-gcc-debug` and `steam-gcc-release` CMake presets select SDK-installed SDL and omit SDL and host desktop-integration files from the installed game. Runtime window icons remain under `bin/icons/`. They do not launch a container themselves.
 
 This guide covers Arch Linux and Arch-based development hosts. The [Steam Runtime documentation](https://github.com/ValveSoftware/steam-runtime#building-in-the-runtime) recommends building inside an SDK container to avoid accidentally depending on libraries from the host distribution.
 

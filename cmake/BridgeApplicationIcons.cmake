@@ -3,6 +3,10 @@
 
 include_guard(GLOBAL)
 
+set(BRIDGE_LINUX_DESKTOP_INTEGRATION install CACHE STRING
+    "Linux desktop entry and hicolor icons: install or none")
+set_property(CACHE BRIDGE_LINUX_DESKTOP_INTEGRATION PROPERTY STRINGS install none)
+
 # Shared by Android, Windows, and Linux packaging. ICON_DIRECTORY points to one consumer-rendered tree with
 # opaque/, transparent/, adaptive/, and monochrome/ families. Bridge validates and packages the images without resizing.
 function(_bridge_validate_icon_directory DIRECTORY OUT_DIRECTORY OUT_PYTHON OUT_DEPENDENCIES)
@@ -87,14 +91,24 @@ function(_bridge_embed_win32_application_icon)
     target_sources("${ARG_TARGET}" PRIVATE "${_rc}")
 endfunction()
 
-# Install a Linux desktop entry and transparent/ hicolor icons alongside the executable and its explicit dependencies.
+# Install a Linux application and its explicit dependencies. Runtime icons are always installed beside the
+# executable; DESKTOP_INTEGRATION install|none (default BRIDGE_LINUX_DESKTOP_INTEGRATION) selects whether to install
+# the freedesktop .desktop entry and hicolor icons as well.
 function(bridge_install_linux_desktop_application)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "TARGET;APPLICATION_ID;APPLICATION_NAME;ICON_DIRECTORY;ASSET_DIRECTORY;CATEGORIES" "RUNTIME_TARGETS;SYSTEM_RUNTIME_TARGETS")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "TARGET;APPLICATION_ID;APPLICATION_NAME;ICON_DIRECTORY;ASSET_DIRECTORY;CATEGORIES;DESKTOP_INTEGRATION" "RUNTIME_TARGETS;SYSTEM_RUNTIME_TARGETS")
     if(ARG_UNPARSED_ARGUMENTS OR ARG_KEYWORDS_MISSING_VALUES)
         message(FATAL_ERROR "bridge_install_linux_desktop_application(): invalid arguments")
     endif()
     if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
         message(FATAL_ERROR "bridge_install_linux_desktop_application() requires Linux")
+    endif()
+    if(ARG_DESKTOP_INTEGRATION)
+        set(_desktop_integration "${ARG_DESKTOP_INTEGRATION}")
+    else()
+        set(_desktop_integration "${BRIDGE_LINUX_DESKTOP_INTEGRATION}")
+    endif()
+    if(NOT "${_desktop_integration}" MATCHES "^(install|none)$")
+        message(FATAL_ERROR "bridge_install_linux_desktop_application(): DESKTOP_INTEGRATION must be install or none")
     endif()
     foreach(_required IN ITEMS TARGET APPLICATION_ID APPLICATION_NAME ICON_DIRECTORY)
         if(NOT ARG_${_required})
@@ -197,14 +211,17 @@ function(bridge_install_linux_desktop_application)
     if(_asset_directory)
         install(DIRECTORY "${_asset_directory}/" DESTINATION "${CMAKE_INSTALL_BINDIR}")
     endif()
-    # SDL loads icons/transparent/*.png beside the executable; Linux hicolor gets the same artwork under the app ID.
-    install(DIRECTORY "${_directory}/" DESTINATION "${CMAKE_INSTALL_BINDIR}/icons")
-    install(FILES "${_desktop}" DESTINATION share/applications)
-    foreach(_size IN ITEMS 16 24 32 48 64 72 96 128 144 192 256 512)
-        install(
-            FILES "${_directory}/transparent/${_size}.png"
-            DESTINATION "share/icons/hicolor/${_size}x${_size}/apps"
-            RENAME "${ARG_APPLICATION_ID}.png"
-        )
-    endforeach()
+    # SDL loads transparent PNGs directly from icons/ beside the executable.
+    # Desktop integration reuses the same artwork under the application ID when requested.
+    install(DIRECTORY "${_directory}/transparent/" DESTINATION "${CMAKE_INSTALL_BINDIR}/icons")
+    if(_desktop_integration STREQUAL "install")
+        install(FILES "${_desktop}" DESTINATION share/applications)
+        foreach(_size IN ITEMS 16 24 32 48 64 72 96 128 144 192 256 512)
+            install(
+                FILES "${_directory}/transparent/${_size}.png"
+                DESTINATION "share/icons/hicolor/${_size}x${_size}/apps"
+                RENAME "${ARG_APPLICATION_ID}.png"
+            )
+        endforeach()
+    endif()
 endfunction()
