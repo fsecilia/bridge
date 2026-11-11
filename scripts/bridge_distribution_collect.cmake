@@ -13,21 +13,56 @@ file(REAL_PATH "${BRIDGE_DISTRIBUTION_EXPECTED_SOURCE}" _source)
 # claiming that the currently requested release set was produced.
 file(REMOVE "${BRIDGE_DISTRIBUTION_COLLECTION_DIRECTORY}/manifest.json")
 
-# Verify and build every requested distribution before publishing any outputs.
+# Build all requested producers before publishing any outputs. A workflow producer
+# configures and tests inside its launcher, while ordinary producers reuse their
+# already configured build trees. Both paths verify source identity afterward.
 set(_manifests "")
+set(_producers "")
 foreach(_entry IN LISTS BRIDGE_DISTRIBUTION_BUILD_TREES)
     if(NOT "${_entry}" MATCHES "^(.+)\\|([A-Za-z0-9_-]+)$")
         message(FATAL_ERROR "Invalid distribution build-tree entry: '${_entry}'")
     endif()
-    set(_build_dir "${CMAKE_MATCH_1}")
-    set(_target "${CMAKE_MATCH_2}")
+    list(APPEND _producers "configured|${CMAKE_MATCH_1}|${CMAKE_MATCH_2}")
+endforeach()
+foreach(_entry IN LISTS BRIDGE_DISTRIBUTION_WORKFLOW_BUILD_TREES)
+    if(NOT "${_entry}" MATCHES "^([^|]+)\\|([A-Za-z0-9_-]+)\\|([^|]+)\\|([A-Za-z0-9_-]+)$")
+        message(FATAL_ERROR "Invalid distribution workflow entry: '${_entry}'")
+    endif()
+    list(APPEND _producers "workflow|${CMAKE_MATCH_1}|${CMAKE_MATCH_2}|${CMAKE_MATCH_3}|${CMAKE_MATCH_4}")
+endforeach()
+
+foreach(_producer IN LISTS _producers)
+    string(REPLACE "|" ";" _parts "${_producer}")
+    list(GET _parts 0 _mode)
+    list(GET _parts 1 _build_dir)
+    list(GET _parts 2 _target)
+    if(EXISTS "${_build_dir}")
+        file(REAL_PATH "${_build_dir}" _build_dir)
+    endif()
+    if("${_build_dir}" STREQUAL "${_coordinator}")
+        message(FATAL_ERROR "A distribution coordinator cannot recursively build its own active tree: ${_build_dir}")
+    endif()
+    if(_mode STREQUAL "workflow")
+        list(GET _parts 3 _launcher)
+        list(GET _parts 4 _preset)
+        if(NOT IS_ABSOLUTE "${_launcher}" OR NOT EXISTS "${_launcher}")
+            message(FATAL_ERROR "Distribution workflow launcher is unavailable: ${_launcher}")
+        endif()
+        message(STATUS "Running distribution workflow ${_preset} through ${_launcher}")
+        execute_process(
+            COMMAND "${_launcher}" cmake --workflow --preset "${_preset}"
+            WORKING_DIRECTORY "${_source}"
+            RESULT_VARIABLE _result
+            COMMAND_ECHO STDOUT
+        )
+        if(NOT "${_result}" STREQUAL "0")
+            message(FATAL_ERROR "Distribution workflow failed (${_result}): ${_preset} in ${_source}")
+        endif()
+    endif()
     if(NOT EXISTS "${_build_dir}/CMakeCache.txt")
         message(FATAL_ERROR "Requested distribution build tree is not configured: ${_build_dir}\nConfigure it with the matching project preset first.")
     endif()
     file(REAL_PATH "${_build_dir}" _build_dir)
-    if("${_build_dir}" STREQUAL "${_coordinator}")
-        message(FATAL_ERROR "A distribution coordinator cannot recursively build its own active tree: ${_build_dir}")
-    endif()
     file(STRINGS "${_build_dir}/CMakeCache.txt" _cache_source REGEX "^CMAKE_HOME_DIRECTORY:INTERNAL=")
     if(NOT _cache_source)
         message(FATAL_ERROR "Distribution build tree has no CMake source identity: ${_build_dir}")
@@ -42,11 +77,20 @@ foreach(_entry IN LISTS BRIDGE_DISTRIBUTION_BUILD_TREES)
         list(APPEND _config_args --config "${BRIDGE_DISTRIBUTION_CONFIG}")
     endif()
     message(STATUS "Building distribution target ${_target} in ${_build_dir}")
-    execute_process(
-        COMMAND "${CMAKE_COMMAND}" --build "${_build_dir}" --target "${_target}" ${_config_args}
-        RESULT_VARIABLE _result
-        COMMAND_ECHO STDOUT
-    )
+    if(_mode STREQUAL "workflow")
+        execute_process(
+            COMMAND "${_launcher}" cmake --build "${_build_dir}" --target "${_target}" ${_config_args}
+            WORKING_DIRECTORY "${_source}"
+            RESULT_VARIABLE _result
+            COMMAND_ECHO STDOUT
+        )
+    else()
+        execute_process(
+            COMMAND "${CMAKE_COMMAND}" --build "${_build_dir}" --target "${_target}" ${_config_args}
+            RESULT_VARIABLE _result
+            COMMAND_ECHO STDOUT
+        )
+    endif()
     if(NOT "${_result}" STREQUAL "0")
         message(FATAL_ERROR "Distribution build failed (${_result}): ${_build_dir} target ${_target}")
     endif()

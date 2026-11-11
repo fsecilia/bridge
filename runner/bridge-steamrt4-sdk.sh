@@ -65,6 +65,9 @@ options=(
     --user "$(id -u):$(id -g)"
     --mount "type=bind,source=${workspace},target=${workspace}"
     --workdir "$workspace"
+    # Keep compiler and Mesa caches in the ignored build tree rather than the source root.
+    --env "XDG_CACHE_HOME=${workspace}/build/.cache/steamrt4"
+    --env "CCACHE_DIR=${workspace}/build/.cache/steamrt4/ccache"
 )
 if [[ -n "$dependency_prefix" ]]; then
     if [[ "$dependency_prefix" != /* || ! -d "$dependency_prefix" ]]; then
@@ -84,7 +87,7 @@ if [[ -n "$dependency_prefix" ]]; then
 fi
 
 if [[ "$mode" == shell ]]; then
-    options+=(--interactive --tty)
+    options+=(--interactive --tty --env HISTFILE=/dev/null --env LESSHISTFILE=-)
     exec "$podman" "${options[@]}" "$image" /bin/bash
 fi
 exec "$podman" "${options[@]}" "$image" "$@"

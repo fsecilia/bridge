@@ -149,3 +149,61 @@ foreach(_mode IN ITEMS success missing wrong-state fail)
         endif()
     endif()
 endforeach()
+
+# A workflow producer starts without a CMake cache. The launcher's workflow
+# phase configures it, and its build phase produces the manifest in that tree.
+set(_workflow_producer "${BRIDGE_TEST_BINARY_DIR}/workflow-producer")
+set(_workflow_launcher "${BRIDGE_TEST_BINARY_DIR}/launch-workflow.sh")
+set(_workflow_log "${BRIDGE_TEST_BINARY_DIR}/workflow-calls.log")
+set(_launcher_template [=[#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> '@_workflow_log@'
+if [[ "$1" != 'cmake' ]]; then
+    echo 'unexpected SDK launcher command' >&2
+    exit 18
+fi
+shift
+if [[ "${1-}" == '--workflow' && "${2-}" == '--preset' && "${3-}" == 'fixture-release' ]]; then
+    if [[ -f '@BRIDGE_TEST_BINARY_DIR@/fail-workflow' ]]; then exit 29; fi
+    '@CMAKE_COMMAND@' -S '@_fixture@' -B '@_workflow_producer@' -G Ninja \
+        '-DBRIDGE_SOURCE_DIR=@BRIDGE_SOURCE_DIR@' -DFIXTURE_ROLE=producer -DFIXTURE_PAYLOAD=workflow
+elif [[ "${1-}" == '--build' ]]; then
+    '@CMAKE_COMMAND@' "$@"
+else
+    echo 'unexpected SDK launcher phase' >&2
+    exit 17
+fi
+]=])
+string(CONFIGURE "${_launcher_template}" _launcher_script @ONLY)
+file(WRITE "${_workflow_launcher}" "${_launcher_script}")
+file(CHMOD "${_workflow_launcher}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+file(REMOVE_RECURSE "${_workflow_producer}" "${_collected}")
+_distribution_run("${CMAKE_COMMAND}" -S "${_fixture}" -B "${_coordinator}" -G Ninja
+    "-DBRIDGE_SOURCE_DIR=${BRIDGE_SOURCE_DIR}" -DFIXTURE_ROLE=coordinator
+    "-DFIXTURE_PRODUCER_DIR=${_workflow_producer}" "-DFIXTURE_OUTPUT_DIR=${_collected}"
+    "-DFIXTURE_WORKFLOW_LAUNCHER=${_workflow_launcher}" -DFIXTURE_VALIDATOR=)
+_distribution_run("${CMAKE_COMMAND}" --build "${_coordinator}" --target fixture_distribution)
+file(READ "${_collected}/windows-x64/example.zip" _result)
+if(NOT _result STREQUAL "workflow")
+    message(FATAL_ERROR "Workflow producer was not configured and collected correctly")
+endif()
+file(STRINGS "${_workflow_log}" _calls)
+list(LENGTH _calls _call_count)
+if(NOT _call_count EQUAL 2)
+    message(FATAL_ERROR "Expected workflow and build invocations: ${_calls}")
+endif()
+list(GET _calls 0 _workflow_call)
+list(GET _calls 1 _build_call)
+if(NOT _workflow_call MATCHES "--workflow --preset fixture-release" OR
+   NOT _build_call MATCHES "--build .* --target fixture_distribution")
+    message(FATAL_ERROR "Incorrect launched workflow phases: ${_calls}")
+endif()
+
+file(WRITE "${BRIDGE_TEST_BINARY_DIR}/fail-workflow" "fail")
+execute_process(COMMAND "${CMAKE_COMMAND}" --build "${_coordinator}" --target fixture_distribution
+    RESULT_VARIABLE _result OUTPUT_VARIABLE _stdout ERROR_VARIABLE _stderr)
+if("${_result}" STREQUAL "0" OR EXISTS "${_collected}/manifest.json" OR
+   NOT "${_stdout}${_stderr}" MATCHES "Distribution workflow failed")
+    message(FATAL_ERROR "Failed workflow published a distribution:\n${_stdout}${_stderr}")
+endif()
+file(REMOVE "${BRIDGE_TEST_BINARY_DIR}/fail-workflow")

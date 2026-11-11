@@ -36,15 +36,19 @@ function(bridge_add_distribution_target)
 endfunction()
 
 # Registers a host-side coordinator. Each BUILD_TREES entry is
-# <configured build directory>|<distribution target>. The coordinator invokes
-# only those trees, then verifies and collects their manifests. An optional
+# <configured build directory>|<distribution target>. A WORKFLOW_BUILD_TREES entry is
+# <build directory>|<distribution target>|<command launcher>|<workflow preset>.
+# The latter runs a full workflow (configure/build/test) and then packages inside
+# the launched environment, allowing unconfigured producer trees. An optional
 # VALIDATOR inspects collected artifacts and returns per-artifact results using
 # --manifest <candidate> --report <output> plus VALIDATION_ARGS.
 function(bridge_add_distribution_collection)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "TARGET;OUTPUT_DIRECTORY;EXPECTED_SOURCE;VALIDATOR" "BUILD_TREES;VALIDATION_ARGS")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "TARGET;OUTPUT_DIRECTORY;EXPECTED_SOURCE;VALIDATOR"
+        "BUILD_TREES;WORKFLOW_BUILD_TREES;VALIDATION_ARGS")
     if(ARG_UNPARSED_ARGUMENTS OR ARG_KEYWORDS_MISSING_VALUES OR
-       NOT ARG_TARGET OR NOT ARG_OUTPUT_DIRECTORY OR NOT ARG_EXPECTED_SOURCE OR NOT ARG_BUILD_TREES)
-        message(FATAL_ERROR "bridge_add_distribution_collection requires TARGET, OUTPUT_DIRECTORY, EXPECTED_SOURCE, and BUILD_TREES")
+       NOT ARG_TARGET OR NOT ARG_OUTPUT_DIRECTORY OR NOT ARG_EXPECTED_SOURCE OR
+       (NOT ARG_BUILD_TREES AND NOT ARG_WORKFLOW_BUILD_TREES))
+        message(FATAL_ERROR "bridge_add_distribution_collection requires TARGET, OUTPUT_DIRECTORY, EXPECTED_SOURCE, and a build-tree list")
     endif()
     if(CMAKE_CROSSCOMPILING)
         message(FATAL_ERROR "Bridge distribution collection must run from a host-native build tree")
@@ -55,6 +59,7 @@ function(bridge_add_distribution_collection)
     _bridge_distribution_recipe_value("${_recipe}" BRIDGE_DISTRIBUTION_EXPECTED_SOURCE "${ARG_EXPECTED_SOURCE}")
     _bridge_distribution_recipe_value("${_recipe}" BRIDGE_DISTRIBUTION_COORDINATOR_DIRECTORY "${PROJECT_BINARY_DIR}")
     _bridge_distribution_recipe_value("${_recipe}" BRIDGE_DISTRIBUTION_BUILD_TREES "${ARG_BUILD_TREES}")
+    _bridge_distribution_recipe_value("${_recipe}" BRIDGE_DISTRIBUTION_WORKFLOW_BUILD_TREES "${ARG_WORKFLOW_BUILD_TREES}")
     if(ARG_VALIDATOR)
         _bridge_distribution_recipe_value("${_recipe}" BRIDGE_DISTRIBUTION_VALIDATOR "${ARG_VALIDATOR}")
         _bridge_distribution_recipe_value("${_recipe}" BRIDGE_DISTRIBUTION_VALIDATION_ARGS "${ARG_VALIDATION_ARGS}")

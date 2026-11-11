@@ -30,11 +30,22 @@ elseif(FIXTURE_ROLE STREQUAL "coordinator")
         list(APPEND _validation VALIDATOR "${FIXTURE_VALIDATOR}"
             VALIDATION_ARGS --mode "${FIXTURE_VALIDATOR_MODE}")
     endif()
+    set(_workflow)
+    if(FIXTURE_WORKFLOW_LAUNCHER)
+        list(APPEND _workflow WORKFLOW_BUILD_TREES
+            "${FIXTURE_PRODUCER_DIR}|fixture_distribution|${FIXTURE_WORKFLOW_LAUNCHER}|fixture-release")
+        set(FIXTURE_PRODUCER_DIR "")
+    endif()
+    set(_ordinary)
+    if(FIXTURE_PRODUCER_DIR)
+        list(APPEND _ordinary BUILD_TREES "${FIXTURE_PRODUCER_DIR}|fixture_distribution")
+    endif()
     bridge_add_distribution_collection(
         TARGET fixture_distribution
         OUTPUT_DIRECTORY "${FIXTURE_OUTPUT_DIR}"
         EXPECTED_SOURCE "${FIXTURE_EXPECTED_SOURCE}"
-        BUILD_TREES "${FIXTURE_PRODUCER_DIR}|fixture_distribution"
+        ${_ordinary}
+        ${_workflow}
         ${_validation}
     )
 else()

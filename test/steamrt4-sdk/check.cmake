@@ -32,6 +32,8 @@ if(BRIDGE_STEAMRT4_CASE STREQUAL "arguments")
         "run\n--rm\n--pull=missing\n--userns=keep-id\n"
         "--mount\ntype=bind,source=${BRIDGE_TEST_BINARY_DIR}/workspace,target=${BRIDGE_TEST_BINARY_DIR}/workspace\n"
         "--workdir\n${BRIDGE_TEST_BINARY_DIR}/workspace\n"
+        "--env\nXDG_CACHE_HOME=${BRIDGE_TEST_BINARY_DIR}/workspace/build/.cache/steamrt4\n"
+        "--env\nCCACHE_DIR=${BRIDGE_TEST_BINARY_DIR}/workspace/build/.cache/steamrt4/ccache\n"
         "--mount\ntype=bind,source=${BRIDGE_TEST_BINARY_DIR}/dependencies,target=${BRIDGE_TEST_BINARY_DIR}/dependencies\n"
         "--env\nCMAKE_PREFIX_PATH=${BRIDGE_TEST_BINARY_DIR}/dependencies\n"
         "${_image}\n/bin/echo\ntwo words\n"
@@ -47,7 +49,7 @@ elseif(BRIDGE_STEAMRT4_CASE STREQUAL "shell")
         message(FATAL_ERROR "Steam Runtime SDK runner rejected an interactive shell: ${_result}\n${_error}")
     endif()
     file(READ "${_log}" _actual)
-    string(FIND "${_actual}" "--interactive\n--tty\n${_image}\n/bin/bash\n" _found)
+    string(FIND "${_actual}" "--interactive\n--tty\n--env\nHISTFILE=/dev/null\n--env\nLESSHISTFILE=-\n${_image}\n/bin/bash\n" _found)
     if(_found EQUAL -1)
         message(FATAL_ERROR "SDK runner did not request an interactive SDK shell:\n${_actual}")
     endif()
