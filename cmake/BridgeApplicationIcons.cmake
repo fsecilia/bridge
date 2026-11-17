@@ -10,6 +10,10 @@ set_property(CACHE BRIDGE_LINUX_DESKTOP_INTEGRATION PROPERTY STRINGS install non
 # Shared by Android, Windows, and Linux packaging. ICON_DIRECTORY points to one consumer-rendered tree with
 # opaque/, transparent/, adaptive/, and monochrome/ families. Bridge validates and packages the images without resizing.
 function(_bridge_validate_icon_directory DIRECTORY OUT_DIRECTORY OUT_PYTHON OUT_DEPENDENCIES)
+    # The icon contract shared with bridge_icons.py. Add supported sizes here when the icon format changes.
+    set(_bridge_icon_standalone_sizes 16 24 32 48 64 72 96 128 144 192 256 512)
+    set(_bridge_icon_adaptive_sizes 108 162 216 324 432)
+
     set(_directory "${DIRECTORY}")
     cmake_path(ABSOLUTE_PATH _directory BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE)
     if(NOT IS_DIRECTORY "${_directory}")
@@ -26,7 +30,13 @@ function(_bridge_validate_icon_directory DIRECTORY OUT_DIRECTORY OUT_PYTHON OUT_
     if(NOT _result EQUAL 0)
         message(FATAL_ERROR "Bridge icon validation failed:\n${_stdout}${_stderr}")
     endif()
-    file(GLOB_RECURSE _dependencies CONFIGURE_DEPENDS LIST_DIRECTORIES FALSE "${_directory}/*.png")
+    set(_dependencies)
+    foreach(_size IN LISTS _bridge_icon_standalone_sizes)
+        list(APPEND _dependencies "${_directory}/opaque/${_size}.png" "${_directory}/transparent/${_size}.png")
+    endforeach()
+    foreach(_size IN LISTS _bridge_icon_adaptive_sizes)
+        list(APPEND _dependencies "${_directory}/adaptive/${_size}.png" "${_directory}/monochrome/${_size}.png")
+    endforeach()
     set(${OUT_DIRECTORY} "${_directory}" PARENT_SCOPE)
     set(${OUT_PYTHON} "${Python3_EXECUTABLE}" PARENT_SCOPE)
     set(${OUT_DEPENDENCIES} "${_dependencies}" PARENT_SCOPE)
