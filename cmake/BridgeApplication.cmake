@@ -148,8 +148,8 @@ function(bridge_stage_runtime)
 endfunction()
 
 # Adds a target that builds an application and starts it on the target
-# platform: it installs and launches an APK on Android, runs an executable under
-# Bridge's Wine runner on Windows, and runs it directly on the host otherwise.
+# platform: it installs and launches an APK on Android, uses the native launcher or
+# Bridge's Wine runner for cross-compiled Windows programs, and runs native programs directly.
 #
 #   bridge_add_run_target(TARGET <name> APPLICATION_TARGET <application>)
 function(bridge_add_run_target)

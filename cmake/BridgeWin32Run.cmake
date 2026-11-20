@@ -39,6 +39,23 @@ function(bridge_add_win32_run_target)
         )
     endif()
 
+    if(CMAKE_HOST_WIN32)
+        if(CMAKE_CROSSCOMPILING)
+            message(FATAL_ERROR
+                "bridge_add_win32_run_target(): running cross-compiled Windows programs on a Windows host is unsupported"
+            )
+        endif()
+        add_custom_target(
+            "${ARG_TARGET}"
+            COMMAND "$<TARGET_FILE:${ARG_APPLICATION_TARGET}>"
+            DEPENDS "${ARG_APPLICATION_TARGET}"
+            COMMENT "Running ${ARG_APPLICATION_TARGET} natively"
+            USES_TERMINAL
+            VERBATIM
+        )
+        return()
+    endif()
+
     set(_runner "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../runner/bridge-win32.sh")
     if(NOT EXISTS "${_runner}")
         message(FATAL_ERROR "Bridge Win32 runner not found: ${_runner}")

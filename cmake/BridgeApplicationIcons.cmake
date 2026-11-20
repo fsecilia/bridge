@@ -122,6 +122,27 @@ function(_bridge_write_png_icon_resources DIRECTORY RC_FILE OUT_PNGS)
     set(${OUT_PNGS} "${_pngs}" PARENT_SCOPE)
 endfunction()
 
+# Enables Windows resources in a caller's directory before an application helper enters function scope.
+# Native Clang toolchains provide windres beside clang++; the cross toolchain already supplies CMAKE_RC_COMPILER.
+macro(bridge_enable_win32_resource_language)
+    if(NOT WIN32)
+        message(FATAL_ERROR "bridge_enable_win32_resource_language() requires a Windows target")
+    endif()
+    if(NOT CMAKE_RC_COMPILER_LOADED)
+        if(CMAKE_HOST_WIN32 AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_RC_COMPILER AND "$ENV{RC}" STREQUAL "")
+            cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH _bridge_compiler_bin)
+            find_program(_bridge_native_windres NAMES x86_64-w64-mingw32-windres llvm-windres
+                PATHS "${_bridge_compiler_bin}" NO_DEFAULT_PATH)
+            if(NOT _bridge_native_windres)
+                message(FATAL_ERROR "Bridge Windows resources require llvm-windres beside ${CMAKE_CXX_COMPILER} "
+                    "or an explicitly configured CMAKE_RC_COMPILER/RC")
+            endif()
+            set(CMAKE_RC_COMPILER "${_bridge_native_windres}" CACHE FILEPATH "Windows resource compiler")
+        endif()
+        enable_language(RC)
+    endif()
+endmacro()
+
 # Embed Windows application icons assembled from transparent/ PNGs into an existing consumer-owned executable.
 # This public entry point is a macro so it can enable RC in the caller's directory if needed.
 # When invoked inside a function without RC already enabled, report an error instead of configuring the wrong scope.

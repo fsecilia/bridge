@@ -3,24 +3,40 @@
 
 include_guard(GLOBAL)
 
-# Resolves the LLVM-MinGW compiler DLLs required by linked C++ applications.
-# The build-tree staging and installation paths must deploy identical files.
+# Resolves the LLVM-MinGW compiler DLLs needed by both cross-compiled and native Windows applications.
+# Native LLVM-MinGW keeps its target DLLs under <root>/x86_64-w64-mingw32/bin; MSYS2 CLANG64 keeps them
+# beside clang++. Never assume the developer shell's PATH will be present when running from an IDE.
 function(_bridge_win32_compiler_runtime_dlls OUT_DLLS)
     set(_compiler_runtime_dlls "")
     get_filename_component(_compiler_name "${CMAKE_CXX_COMPILER}" NAME)
-    if(_compiler_name MATCHES "^([A-Za-z0-9_]+-w64-mingw32)-clang\\+\\+$")
-        set(_target_triplet "${CMAKE_MATCH_1}")
-        cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH _compiler_bin)
-        cmake_path(GET _compiler_bin PARENT_PATH _toolchain_root)
+    cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH _compiler_bin)
+    cmake_path(GET _compiler_bin PARENT_PATH _toolchain_root)
 
-        foreach(_dll IN ITEMS libc++.dll libunwind.dll)
-            set(_path "${_toolchain_root}/${_target_triplet}/bin/${_dll}")
-            if(NOT EXISTS "${_path}")
-                message(FATAL_ERROR "LLVM-MinGW runtime DLL is missing: ${_path}")
-            endif()
-            list(APPEND _compiler_runtime_dlls "${_path}")
-        endforeach()
+    if(_compiler_name MATCHES "^([A-Za-z0-9_]+-w64-mingw32)-clang\\+\\+(\\.exe)?$")
+        set(_runtime_dir "${_toolchain_root}/${CMAKE_MATCH_1}/bin")
+    elseif(_compiler_name MATCHES "^clang\\+\\+(\\.exe)?$" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(_llvm_mingw_dir "${_toolchain_root}/x86_64-w64-mingw32/bin")
+        if(EXISTS "${_llvm_mingw_dir}/libc++.dll")
+            set(_runtime_dir "${_llvm_mingw_dir}")
+        else()
+            set(_runtime_dir "${_compiler_bin}")
+        endif()
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        message(FATAL_ERROR
+            "Unsupported Windows Clang driver '${_compiler_name}'; Bridge cannot locate its runtime DLLs"
+        )
+    else()
+        set(${OUT_DLLS} "" PARENT_SCOPE)
+        return()
     endif()
+
+    foreach(_dll IN ITEMS libc++.dll libunwind.dll)
+        set(_path "${_runtime_dir}/${_dll}")
+        if(NOT EXISTS "${_path}")
+            message(FATAL_ERROR "LLVM-MinGW runtime DLL is missing: ${_path}")
+        endif()
+        list(APPEND _compiler_runtime_dlls "${_path}")
+    endforeach()
 
     set(${OUT_DLLS} "${_compiler_runtime_dlls}" PARENT_SCOPE)
 endfunction()

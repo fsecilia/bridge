@@ -74,6 +74,25 @@ _bridge_add_script_test(
         "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/win32-environment"
 )
 
+_bridge_add_script_test(
+    bridge.win32.host.launch
+    SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/win32-host/check.cmake"
+    LABELS win32 runner
+    DEFINITIONS
+        "BRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/win32-host"
+        "BRIDGE_TEST_GENERATOR=${CMAKE_GENERATOR}"
+        "BRIDGE_TEST_CONFIGURATION=$<CONFIG>"
+)
+_bridge_add_script_test(
+    bridge.win32.runtime.discovery
+    SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/win32-host/runtime-discovery.cmake"
+    LABELS win32 runtime
+    DEFINITIONS
+        "BRIDGE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "BRIDGE_TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/win32-runtime-discovery"
+)
+
 # The Steam Runtime SDK executor has no Podman dependency during its isolated argument and failure-contract tests.
 foreach(_case IN ITEMS arguments shell floating-image missing-podman podman-error prefix-inside-workspace prefix-contains-workspace)
     _bridge_add_script_test(
