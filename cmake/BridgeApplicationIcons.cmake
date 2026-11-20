@@ -7,6 +7,43 @@ set(BRIDGE_LINUX_DESKTOP_INTEGRATION install CACHE STRING
     "Linux desktop entry and hicolor icons: install or none")
 set_property(CACHE BRIDGE_LINUX_DESKTOP_INTEGRATION PROPERTY STRINGS install none)
 
+# Windows embeds the original PNG bytes as RT_ICON resources. CMake checks their headers, but cannot verify PNG
+# checksums or decompress pixel data. Android and Linux retain full PNG validation through the Python packaging tool.
+function(_bridge_check_png_header PATH EXPECTED_SIZE)
+    if(NOT EXISTS "${PATH}")
+        message(FATAL_ERROR "Bridge icon is missing: ${PATH}")
+    endif()
+    file(SIZE "${PATH}" _file_size)
+    if(_file_size LESS 45)
+        message(FATAL_ERROR "Bridge icon is too small to be a complete PNG: ${PATH}")
+    endif()
+    file(READ "${PATH}" _header LIMIT 29 HEX)
+    if(NOT _header MATCHES "^89504e470d0a1a0a0000000d49484452")
+        message(FATAL_ERROR "Bridge icon does not start with a PNG IHDR: ${PATH}")
+    endif()
+    string(SUBSTRING "${_header}" 32 8 _width_hex)
+    string(SUBSTRING "${_header}" 40 8 _height_hex)
+    string(SUBSTRING "${_header}" 48 2 _depth)
+    string(SUBSTRING "${_header}" 50 2 _color)
+    math(EXPR _width "0x${_width_hex}")
+    math(EXPR _height "0x${_height_hex}")
+    if(NOT _width EQUAL EXPECTED_SIZE OR NOT _height EQUAL EXPECTED_SIZE)
+        message(FATAL_ERROR "Bridge icon ${PATH}: expected ${EXPECTED_SIZE}x${EXPECTED_SIZE}, got ${_width}x${_height}")
+    endif()
+    if(NOT _depth STREQUAL "08" OR NOT _color MATCHES "^(02|06)$")
+        message(FATAL_ERROR "Bridge icon ${PATH}: expected 8-bit RGB or RGBA PNG")
+    endif()
+    string(SUBSTRING "${_header}" 52 6 _png_modes)
+    if(NOT _png_modes STREQUAL "000000")
+        message(FATAL_ERROR "Bridge icon ${PATH}: expected non-interlaced PNG with standard compression and filtering")
+    endif()
+    math(EXPR _footer_offset "${_file_size} - 12")
+    file(READ "${PATH}" _footer OFFSET ${_footer_offset} LIMIT 12 HEX)
+    if(NOT _footer STREQUAL "0000000049454e44ae426082")
+        message(FATAL_ERROR "Bridge icon ${PATH}: missing final PNG IEND chunk")
+    endif()
+endfunction()
+
 # Shared by Android, Windows, and Linux packaging. ICON_DIRECTORY points to one consumer-rendered tree with
 # opaque/, transparent/, adaptive/, and monochrome/ families. Bridge validates and packages the images without resizing.
 function(_bridge_validate_icon_directory DIRECTORY OUT_DIRECTORY OUT_PYTHON OUT_DEPENDENCIES)
@@ -19,17 +56,6 @@ function(_bridge_validate_icon_directory DIRECTORY OUT_DIRECTORY OUT_PYTHON OUT_
     if(NOT IS_DIRECTORY "${_directory}")
         message(FATAL_ERROR "Bridge icon directory does not exist: ${_directory}")
     endif()
-    find_package(Python3 REQUIRED COMPONENTS Interpreter)
-    set(_script "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/bridge_icons.py")
-    execute_process(
-        COMMAND "${Python3_EXECUTABLE}" "${_script}" validate --source "${_directory}"
-        RESULT_VARIABLE _result
-        OUTPUT_VARIABLE _stdout
-        ERROR_VARIABLE _stderr
-    )
-    if(NOT _result EQUAL 0)
-        message(FATAL_ERROR "Bridge icon validation failed:\n${_stdout}${_stderr}")
-    endif()
     set(_dependencies)
     foreach(_size IN LISTS _bridge_icon_standalone_sizes)
         list(APPEND _dependencies "${_directory}/opaque/${_size}.png" "${_directory}/transparent/${_size}.png")
@@ -37,12 +63,66 @@ function(_bridge_validate_icon_directory DIRECTORY OUT_DIRECTORY OUT_PYTHON OUT_
     foreach(_size IN LISTS _bridge_icon_adaptive_sizes)
         list(APPEND _dependencies "${_directory}/adaptive/${_size}.png" "${_directory}/monochrome/${_size}.png")
     endforeach()
+
+    if(WIN32)
+        foreach(_file IN LISTS _dependencies)
+            get_filename_component(_name "${_file}" NAME_WE)
+            _bridge_check_png_header("${_file}" "${_name}")
+        endforeach()
+        message(STATUS "Bridge Windows icon validation checks PNG headers only (checksums and pixel data are not checked)")
+        set(_python "")
+    else()
+        find_package(Python3 REQUIRED COMPONENTS Interpreter)
+        set(_script "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/bridge_icons.py")
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" "${_script}" validate --source "${_directory}"
+            RESULT_VARIABLE _result
+            OUTPUT_VARIABLE _stdout
+            ERROR_VARIABLE _stderr
+        )
+        if(NOT _result EQUAL 0)
+            message(FATAL_ERROR "Bridge icon validation failed:\n${_stdout}${_stderr}")
+        endif()
+        set(_python "${Python3_EXECUTABLE}")
+    endif()
     set(${OUT_DIRECTORY} "${_directory}" PARENT_SCOPE)
-    set(${OUT_PYTHON} "${Python3_EXECUTABLE}" PARENT_SCOPE)
+    set(${OUT_PYTHON} "${_python}" PARENT_SCOPE)
     set(${OUT_DEPENDENCIES} "${_dependencies}" PARENT_SCOPE)
 endfunction()
 
-# Embed a Windows ICO assembled from transparent/ PNGs into an existing consumer-owned executable.
+# Type 3 is RT_ICON; type 14 is RT_GROUP_ICON. The group header is three WORDs;
+# each entry has two packed dimension bytes, two zero bytes, planes, bit depth, a DWORD byte length, and an icon ID.
+function(_bridge_write_png_icon_resources DIRECTORY RC_FILE OUT_PNGS)
+    set(_ico_sizes 16 24 32 48 64 256)
+    set(_pngs)
+    set(_images "")
+    set(_group "1 14 BEGIN\n    0, 1, 6,\n")
+    set(_id 0)
+    foreach(_size IN LISTS _ico_sizes)
+        math(EXPR _id "${_id} + 1")
+        set(_png "${DIRECTORY}/transparent/${_size}.png")
+        file(SIZE "${_png}" _bytes)
+        if(_size EQUAL 256)
+            set(_encoded_size 0)
+        else()
+            set(_encoded_size "${_size}")
+        endif()
+        math(EXPR _packed_size "${_encoded_size} | (${_encoded_size} << 8)")
+        string(APPEND _images "${_id} 3 \"${_png}\"\n")
+        if(_id EQUAL 6)
+            set(_entry_terminator "")
+        else()
+            set(_entry_terminator ",")
+        endif()
+        string(APPEND _group "    ${_packed_size}, 0, 1, 32, ${_bytes}L, ${_id}${_entry_terminator}\n")
+        list(APPEND _pngs "${_png}")
+    endforeach()
+    string(APPEND _group "END\n")
+    file(WRITE "${RC_FILE}" "${_images}${_group}")
+    set(${OUT_PNGS} "${_pngs}" PARENT_SCOPE)
+endfunction()
+
+# Embed Windows application icons assembled from transparent/ PNGs into an existing consumer-owned executable.
 # This public entry point is a macro so it can enable RC in the caller's directory if needed.
 # When invoked inside a function without RC already enabled, report an error instead of configuring the wrong scope.
 macro(bridge_embed_win32_application_icon)
@@ -81,23 +161,12 @@ function(_bridge_embed_win32_application_icon)
     _bridge_validate_icon_directory("${ARG_ICON_DIRECTORY}" _directory _python _dependencies)
 
     set(_generated "${CMAKE_CURRENT_BINARY_DIR}/bridge-icons/${ARG_TARGET}")
-    set(_ico "${_generated}/application.ico")
     set(_rc "${_generated}/application.rc")
     file(MAKE_DIRECTORY "${_generated}")
-    file(WRITE "${_rc}" "1 ICON \"${_ico}\"\n")
-
-    add_custom_command(
-        OUTPUT "${_ico}"
-        COMMAND "${_python}" "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/bridge_icons.py"
-            ico --source "${_directory}" --output "${_ico}"
-        DEPENDS ${_dependencies} "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/bridge_icons.py"
-        COMMENT "Generating ${ARG_TARGET} Windows application icon"
-        VERBATIM
-    )
-    set(_icon_target "${ARG_TARGET}_bridge_icon")
-    add_custom_target("${_icon_target}" DEPENDS "${_ico}")
-    add_dependencies("${ARG_TARGET}" "${_icon_target}")
-    set_source_files_properties("${_rc}" PROPERTIES OBJECT_DEPENDS "${_ico}")
+    _bridge_write_png_icon_resources("${_directory}" "${_rc}" _pngs)
+    # The resource group records each PNG's byte length. A changed PNG must update both the group and its raw resource.
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_pngs})
+    set_source_files_properties("${_rc}" PROPERTIES OBJECT_DEPENDS "${_pngs}")
     target_sources("${ARG_TARGET}" PRIVATE "${_rc}")
 endfunction()
 

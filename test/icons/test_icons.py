@@ -3,7 +3,9 @@
 # Copyright (c) 2026 Frank Secilia
 
 import importlib.util
+import shutil
 import struct
+import subprocess
 import tempfile
 import unittest
 import zlib
@@ -63,18 +65,43 @@ class IconsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "checksum"):
             icons.validate_directory(self.source)
 
-    def test_ico_contains_native_pngs(self):
-        output = self.root / "application.ico"
-        icons.write_ico(self.source, output)
-        data = output.read_bytes()
-        self.assertEqual(struct.unpack_from("<HHH", data), (0, 1, len(icons.ICO_SIZES)))
-        for index, size in enumerate(icons.ICO_SIZES):
-            width, height, _, _, _, _, length, offset = struct.unpack_from(
-                "<BBBBHHII", data, 6 + 16 * index
-            )
-            self.assertEqual((width, height), (size % 256, size % 256))
-            self.assertEqual(data[offset : offset + length], (self.source / icons.transparent_path(size)).read_bytes())
-            self.assertNotEqual(data[offset : offset + length], (self.source / icons.opaque_path(size)).read_bytes())
+    def test_windows_resources_without_python(self):
+        output = self.root / "application.rc"
+        script = Path(__file__).parent / "windows-resources.cmake"
+        cmake = shutil.which("cmake")
+        self.assertIsNotNone(cmake, "CMake is required to test Windows resources")
+        command = [
+            cmake,
+            "-DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE",
+            f"-DBRIDGE_ICON_SOURCE={self.source}",
+            f"-DBRIDGE_GENERATED_RC={output}",
+            "-P", str(script),
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rc = output.read_text()
+        self.assertIn("1 14 BEGIN\n    0, 1, 6,\n", rc)
+        for icon_id, size in enumerate((16, 24, 32, 48, 64, 256), start=1):
+            image = self.source / icons.transparent_path(size)
+            self.assertIn(f'{icon_id} 3 "{image.as_posix()}"', rc)
+            encoded = size % 256
+            packed = encoded | (encoded << 8)
+            terminator = "," if icon_id < 6 else ""
+            self.assertIn(f"    {packed}, 0, 1, 32, {image.stat().st_size}L, {icon_id}{terminator}\n", rc)
+
+        image = self.source / "adaptive/162.png"
+        original = image.read_bytes()
+        invalid = [
+            (png(108), r"expected 162x162, got\s+108x108"),
+            (original[:-12], r"missing final PNG IEND\s+chunk"),
+            (original[:28] + b"\x01" + original[29:], r"expected\s+non-interlaced PNG"),
+        ]
+        for data, error in invalid:
+            with self.subTest(error=error):
+                image.write_bytes(data)
+                result = subprocess.run(command, capture_output=True, text=True, check=False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertRegex(result.stdout + result.stderr, error)
 
     def test_android_resources_and_background(self):
         output = self.root / "res"

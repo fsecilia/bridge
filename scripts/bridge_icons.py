@@ -4,7 +4,7 @@
 
 """Validate content-based icon families and package platform resources.
 
-Opaque images supply Android legacy icons. Adaptive and monochrome images supply Android adaptive layers. Transparent images supply Windows ICO and Linux desktop icons. No image is resized; Bridge copies or embeds the source PNG bytes unchanged.
+Opaque images supply Android legacy icons. Adaptive and monochrome images supply Android adaptive layers. Transparent images supply Linux desktop icons. Windows resources are generated directly by CMake. No image is resized; Bridge copies or embeds the source PNG bytes unchanged.
 """
 
 import argparse
@@ -18,7 +18,6 @@ from xml.sax.saxutils import escape
 
 STANDALONE_SIZES = (16, 24, 32, 48, 64, 72, 96, 128, 144, 192, 256, 512)
 ADAPTIVE_SIZES = (108, 162, 216, 324, 432)
-ICO_SIZES = (16, 24, 32, 48, 64, 256)
 ANDROID_DENSITIES = (
     ("mdpi", 48, 108),
     ("hdpi", 72, 162),
@@ -124,18 +123,6 @@ def validate_directory(source: Path):
         validate_png(source / filename, int(Path(filename).stem))
 
 
-def write_ico(source: Path, output: Path):
-    images = [validate_png(source / transparent_path(size), size) for size in ICO_SIZES]
-    output.parent.mkdir(parents=True, exist_ok=True)
-    header = struct.pack("<HHH", 0, 1, len(images))
-    offset = len(header) + 16 * len(images)
-    entries = bytearray()
-    for size, image in zip(ICO_SIZES, images):
-        entries.extend(struct.pack("<BBBBHHII", size % 256, size % 256, 0, 0, 1, 32, len(image), offset))
-        offset += len(image)
-    output.write_bytes(header + entries + b"".join(images))
-
-
 def write_android(source: Path, output: Path, background: str):
     if not re.fullmatch(r"#[0-9A-Fa-f]{6}", background):
         raise ValueError(f"adaptive background must be #RRGGBB, got {background!r}")
@@ -176,7 +163,7 @@ def write_android(source: Path, output: Path, background: str):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     subcommands = parser.add_subparsers(dest="command", required=True)
-    for command in ("validate", "ico", "android"):
+    for command in ("validate", "android"):
         subcommand = subcommands.add_parser(command)
         subcommand.add_argument("--source", required=True, type=Path)
         if command != "validate":
@@ -186,9 +173,7 @@ def main():
     args = parser.parse_args()
     try:
         validate_directory(args.source)
-        if args.command == "ico":
-            write_ico(args.source, args.output)
-        elif args.command == "android":
+        if args.command == "android":
             write_android(args.source, args.output, args.background)
     except (OSError, ValueError) as error:
         parser.exit(1, f"Bridge icon error: {error}\n")
